@@ -1,7 +1,9 @@
 import numpy as np
 from astropy.io import fits
 import numba as nb
-from typing import List
+from typing import List, Tuple
+from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
 
 
 def makeaperpixmaps(npix: int) -> None:
@@ -17,6 +19,8 @@ def makeaperpixmaps(npix: int) -> None:
 
     None
     '''
+
+    print("Creating aperture pixel maps.")
 
     cenpix = npix / 2. + 1.
     r_aper = np.arange(cenpix) + 1.
@@ -50,7 +54,6 @@ def aperpixmap(npix: int, rad: float,  nsubpix: int, frac: float) -> np.ndarray:
     np.ndarry
         Numpy array that stores the mask.
     '''
-
     npix = int(npix)
 
     cenpix = np.array([int(npix/2) + 1, int(npix/2) + 1])
@@ -108,6 +111,7 @@ def aperpixmap(npix: int, rad: float,  nsubpix: int, frac: float) -> np.ndarray:
     return mask
 
 
+@nb.njit(nb.float64[:, :](nb.int64, nb.int64, nb.int64[:]))
 def distarr(npixx: int, npixy: int, cenpix: np.ndarray) -> np.ndarray:
     '''Writes the aperture binary masks out after calculation.
 
@@ -183,6 +187,150 @@ def subdistarr(npix: int, nsubpix: int, cenpix: List[int]) -> np.ndarray:
     return subdist
 
 
+def skybgr(img, imgsize):
+
+    npix = imgsize
+    cenpix = np.array([int(npix/2) + 1, int(npix/2) + 1])
+    distarrvar = distarr(npix, npix, cenpix)
+
+    # Define skyregion by fitting a Gaussian to the galaxy and computing on all
+    # outwith this
+
+    yfit = gauss2dfit(img, imgsize)
+    fact = 2 * np.sqrt(2 * np.log(2))
+    fwhm_x = fact * np.abs(yfit[3])
+    fwhm_y = fact * np.abs(yfit[4])
+    r_in = 2. * max(fwhm_x, fwhm_y)
+
+    skyind = np.nonzero(distarrvar > r_in)
+    skyregion = img[skyind]
+
+    if skyregion.shape[0] > 100:
+        # Flag the measurement if sky region smaller than 20000 pixels
+        # (Simard et al. 2011)
+        if skyregion.shape[0] < 20000:
+            flag = 1
+
+        mean_sky = np.mean(skyregion)
+        median_sky = np.median(skyregion)
+        sigma_sky = np.std(skyregion)
+
+        if mean_sky <= median_sky:
+            # non crowded region. Use mean for background measurement
+            sky = mean_sky
+            sky_err = sigma_sky
+        else:
+            # crowded region. Use mode for background measurement
+            mode_old = 3.*median_sky - 2.*mean_sky
+            mode_new = 0.0
+            w = 0
+            clipsteps = skyregion.shape[0]
+
+            # Begin sigma clipping until convergence/
+            while w < clipsteps:
+
+                skyind = np.nonzero(np.abs(skyregion - mean_sky) < 3. * sigma_sky)
+                skyregion = skyregion[skyind]
+
+                mean_sky = np.mean(skyregion)
+                median_sky = np.median(skyregion)
+                sigma_sky = np.std(skyregion)
+                mode_new = 3.*median_sky - 2.*mean_sky
+                mode_diff = np.abs(mode_old - mode_new)
+
+                if mode_diff < 0.01:
+                    mode_sky = mode_new
+                    w = clipsteps
+                else:
+                    w += 1
+                mode_old = mode_new
+
+        sky = mode_sky
+        sky_err = sigma_sky
+
+    return sky, sky_err, flag
+
+
+def gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
+    '''Function that fits a 2D Gaussian to image data.
+
+    Parameters
+    ----------
+
+    img : np.ndarray
+        Image array to be fitted to.
+    imgsize : int
+        Size of image in x and y directions.
+
+    Returns
+    -------
+
+    popt : List[float]
+        List of calculated parameters from curve_fit.
+
+    '''
+
+    x = np.linspace(0, imgsize-1, imgsize)
+    y = np.linspace(0, imgsize-1, imgsize)
+    X, Y = np.meshgrid(x, y)
+
+    # convert image to 1D array for fitting purposes
+    img = img.ravel()
+
+    # Guess parameters for fit
+    amp = np.amax(img)
+    xo, yo = np.unravel_index(np.argmax(img), (imgsize, imgsize))
+    sigx = np.std(img)
+    theta = 0
+    offset = 10
+    initial_guess = [amp, xo, yo, sigx, sigx, theta, offset]
+
+    popt, pconv = curve_fit(Gaussian2D, (X, Y), img, p0=initial_guess)
+
+    return np.abs(popt)
+
+
+def Gaussian2D(xytuple: Tuple[List[float], List[float]], amplitude: float,
+               xo: float, yo: float, sigma_x: float, sigma_y: float,
+               theta: float, offset: float) -> List[float]:
+    '''Calculates a 2D Gaussian distribution.
+
+    Parameters
+    ----------
+    xytuple : Tuple[List[float], List[float]]
+        Tuple of (x, y) values.
+    amplitude: float
+        Amplitude of Gaussian.
+    xo, yo: float
+        Centre point of Gaussian distribution.
+    sigma_x, sigma_y : float
+        Standard deviation of Gaussian distribution in x and y directions.
+    theta : float
+        Angle of Gaussian distribution.
+    offset : float
+        Offset of the Gaussian distribution.
+    Returns
+    -------
+    g.ravel() : List[float]
+        1D array of computed Gaussian distribution. Array is 1D so that
+        function is compatible with Scpiy's curve_fit.
+        Parameters are: Amplitude, xo, yo, sigx, sigy, theta, offset
+    '''
+
+    (x, y) = xytuple
+
+    a = (np.cos(theta)**2) / (2 * sigma_x**2) + \
+        (np.sin(theta)**2) / (2*sigma_y**2)
+    b = -(np.sin(2*theta)) / (4 * sigma_x**2) + \
+         (np.sin(2*theta)) / (4*sigma_y**2)
+    c = (np.sin(theta)**2) / (2 * sigma_x**2) + \
+        (np.cos(theta)**2) / (2*sigma_y**2)
+    g = offset + amplitude * np.exp(-(a * ((x - xo)**2) +
+                                    2 * b * (x - xo) * (y - yo) +
+                                    c * ((y - yo)**2)))
+    return g.ravel()
+
+
 if __name__ == '__main__':
     from argparse import ArgumentParser
     from pathlib import Path
@@ -203,24 +351,28 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    if not args.file and not args.folder:
+        print("Script needs input images to work!!")
+        sys.exit()
+
     # add files to a list #TODO more efficient way? i.e generator or something?
     files = []
     if args.file:
         files.append(Path(args.file))
     elif args.folder:
-        files = Path(args.folder)
+        print("Folders not supported yet!")
+        sys.exit()
 
     # get image size. Assume all images the same size and are square
-    warnings.simplefilter('ignore', category=AstropyWarning)  # supress warnings about unrecognizsed keywords
-    hdul = fits.open(files[0])
-    imgsize = hdul[0].data.shape[0]
+    warnings.simplefilter('ignore', category=AstropyWarning)  # suppress warnings about unrecognised keywords
+    data = fits.getdata(files[0])
+    imgsize = data.shape[0]
 
-    # Generate binary aperture masks for compuation of light profiles
-    # Checks if they already exist, if so skips compuation
-    if args.aperpixmap:
+    # Generate binary aperture masks for computation of light profiles
+    # Checks if they already exist, if so skips computation
+    if args.aperpixmap: 
         if Path("aperture32.fits").exists():
-            tmphdul = fits.open(Path("aperture32.fits"))
-            tmpdata = tmphdul[0].data
+            tmpdata = fits.getdata(Path("aperture32.fits"))
             if tmpdata.shape[0] != imgsize:
                 makeaperpixmaps(imgsize)
         else:
@@ -230,8 +382,9 @@ if __name__ == '__main__':
         if not file.exists():
             print(f"Fits image:{file.name} does not exist!")
             continue
-        hdul = fits.open(file)
-        data = hdul[0].data
+        data = fits.getdata(file)
         if not data.shape[0] == data.shape[1]:
             print("ERROR: wrong image size. Please preprocess data!")
             sys.exit()
+        sky, sky_err, flag = skybgr(data, imgsize)
+        print(sky, sky_err, flag)
