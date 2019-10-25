@@ -3,7 +3,6 @@ from astropy.io import fits
 import numba as nb
 from typing import List, Tuple
 from scipy.optimize import curve_fit
-import matplotlib.pyplot as plt
 
 
 def makeaperpixmaps(npix: int) -> None:
@@ -187,7 +186,24 @@ def subdistarr(npix: int, nsubpix: int, cenpix: List[int]) -> np.ndarray:
     return subdist
 
 
-def skybgr(img, imgsize):
+def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
+    '''Function that calculates the sky background value.
+
+    Parameters
+    ----------
+    img : np.ndarray
+        Image data from which the background will be calculated.
+    imgsize : int
+        Size of the image.
+
+    Returns
+    -------
+
+    sky, sky_err, and flag : float, float, int
+        sky is the sky background measurement.
+        sky_err is the error in that measurement.
+        flag indicates that the image size was less than ideal.
+    '''
 
     npix = imgsize
     cenpix = np.array([int(npix/2) + 1, int(npix/2) + 1])
@@ -284,21 +300,22 @@ def gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
     theta = 0
     offset = 10
     initial_guess = [amp, xo, yo, sigx, sigx, theta, offset]
-
-    popt, pconv = curve_fit(Gaussian2D, (X, Y), img, p0=initial_guess)
+    xdata = np.vstack((X.ravel(), Y.ravel()))
+    popt, pconv = curve_fit(Gaussian2D, (X, Y), img, p0=initial_guess, ftol=1e-4, xtol=1e-5, gtol=1e-2)
 
     return np.abs(popt)
 
 
-def Gaussian2D(xytuple: Tuple[List[float], List[float]], amplitude: float,
+@nb.njit
+def Gaussian2D(xydata: List[float], amplitude: float,
                xo: float, yo: float, sigma_x: float, sigma_y: float,
                theta: float, offset: float) -> List[float]:
     '''Calculates a 2D Gaussian distribution.
 
     Parameters
     ----------
-    xytuple : Tuple[List[float], List[float]]
-        Tuple of (x, y) values.
+    xydata : List[float], List[float]
+        Stack of x and y values values. xydata[0] is x and xydata[1] is y
     amplitude: float
         Amplitude of Gaussian.
     xo, yo: float
@@ -317,7 +334,8 @@ def Gaussian2D(xytuple: Tuple[List[float], List[float]], amplitude: float,
         Parameters are: Amplitude, xo, yo, sigx, sigy, theta, offset
     '''
 
-    (x, y) = xytuple
+    x = xydata[0].reshape((141, 141))
+    y = xydata[1].reshape((141, 141))
 
     a = (np.cos(theta)**2) / (2 * sigma_x**2) + \
         (np.sin(theta)**2) / (2*sigma_y**2)
@@ -370,7 +388,7 @@ if __name__ == '__main__':
 
     # Generate binary aperture masks for computation of light profiles
     # Checks if they already exist, if so skips computation
-    if args.aperpixmap: 
+    if args.aperpixmap:
         if Path("aperture32.fits").exists():
             tmpdata = fits.getdata(Path("aperture32.fits"))
             if tmpdata.shape[0] != imgsize:
