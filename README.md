@@ -11,6 +11,9 @@ Currently only replicates the ability to generate aperture pixel maps and object
  - -f FILE, Path to a single image for analysis
  - -fo FOLDER, Path to folder of images for analysis
  - -aperpixmap, Generate aperture pixel maps
+ 
+ Example
+  - ./imganalysis.py -f sample/sdsscutout_211.51-0.31_rband.fits -aperpixmap
 
 ## Installation
 
