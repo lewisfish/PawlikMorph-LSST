@@ -12,6 +12,14 @@ Currently only replicates the ability to generate aperture pixel maps and object
  - -fo FOLDER, Path to folder of images for analysis
  - -aperpixmap, Generate aperture pixel maps
 
+## Installation
+
+First clone this repo. Then either use pip or conda to install dependencies:
+  - pip install --user --requirement requirements.txt
+  
+  Or
+  - conda env create -f enviroment.yml
+
 ## Requirments
  - Python 3.6.5+
  - Numpy 1.15.4+
