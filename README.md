@@ -17,6 +17,7 @@ Currently only replicates the ability to generate aperture pixel maps
  - Numpy 1.15.4+
  - Numba 0.38.1+
  - Astropy 3.0.3+
+ - Scikit-image 0.14.0+
  
  ## TODO
   - Calculate Asymmetry
