@@ -36,7 +36,8 @@ def makeaperpixmaps(npix: int) -> None:
 
 @nb.njit
 def aperpixmap(npix: int, rad: float,  nsubpix: int, frac: float) -> np.ndarray:
-    '''Calculates the aperture binary mask through pixel sampling knowing aperture radius and number of subpixels.
+    '''Calculates the aperture binary mask through pixel sampling knowing
+       aperture radius and number of subpixels.
 
     Parameters
     ----------
@@ -100,7 +101,8 @@ def aperpixmap(npix: int, rad: float,  nsubpix: int, frac: float) -> np.ndarray:
 
     for i in range(0, (npix*npix)):
 
-        apersubpix = (subpixels[i, :, :].flatten()[::-1] <= rad).nonzero()[0]  # This is really inefficient...
+        # TODO. This is really inefficient...
+        apersubpix = (subpixels[i, :, :].flatten()[::-1] <= rad).nonzero()[0]
         apersubpix_size = apersubpix.shape
 
         fraction = float(apersubpix_size[0]) / float(nsubpix**2)
@@ -464,7 +466,8 @@ if __name__ == '__main__':
         sys.exit()
 
     # get image size. Assume all images the same size and are square
-    warnings.simplefilter('ignore', category=AstropyWarning)  # suppress warnings about unrecognised keywords
+    # suppress warnings about unrecognised keywords
+    warnings.simplefilter('ignore', category=AstropyWarning)
     data = fits.getdata(files[0])
     imgsize = data.shape[0]
 
@@ -490,3 +493,4 @@ if __name__ == '__main__':
         print(sky, sky_err, flag)
         mask = pixelmap(data, sky + sky_err, 3)
         fits.writeto("result.fits", mask, overwrite=True)
+        data -= skybgr
