@@ -1,7 +1,7 @@
 # PawlikMorph-LSST
 Translation and optimisation of SEDMORPH's [PawlikMorph](https://github.com/SEDMORPH/PawlikMorph) IDL code for analysing images of galaxies from SDSS data release 7
 
-Currently only replicates the ability to generate aperture pixel maps 
+Currently only replicates the ability to generate aperture pixel maps and object binary mask.
 
 ## Usage
 
