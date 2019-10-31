@@ -3,7 +3,7 @@ from astropy.io import fits
 import numba as nb
 from typing import List, Tuple
 from scipy.optimize import curve_fit
-from skimage.transform import resize
+from skimage.transform import resize, rotate
 from scipy.ndimage import uniform_filter
 
 
@@ -433,6 +433,148 @@ def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
     return objmask
 
 
+def minapix(img: np.ndarray, mask: np.ndarray, apermask: np.ndarray) -> List[int]:
+    """Funciton that finds the minimum asymmetry central pixel within the
+       objects pixels of a given image.
+       Selects a range of cnadidate centroids within the brightest region that
+       comprimises og 20% of the total flux within object.
+       Then measures the asymmetry of the image under rotation around that
+       centroid.
+       Then picks the centroid that yields the minimum A value.
+
+
+    Parameters
+    ----------
+
+    img : np.ndarray
+        Image that the minimum asymmetry pixel is to be found in.
+    mask : np.ndarray
+        Precomputed mask that describes where the object of interest is in the
+        image
+    apermask : np.ndarray
+        Precomuted aperture mask
+
+    Returns
+    -------
+
+    Centroid : List[int]
+        The minimum asymmetery pixel position.
+    """
+
+    npix = img.shape[0]
+    cenpix = np.array([int(npix / 2) + 1, int(npix / 2) + 1])
+
+    imgravel = np.ravel(img)
+    tmpmaskravel = np.ravel(img * mask)
+    if np.sum(tmpmaskravel) == 0:
+        return [0, 0]
+
+    sortedind = np.argsort(tmpmaskravel)[::-1]
+    ipix = tmpmaskravel[sortedind]
+
+    itotal = np.sum(ipix)
+    ii = 0
+    isum = 0
+    count = 0
+
+    while ii < npix**2:
+        if ipix[ii] > 0:
+            count += 1
+            isum += ipix[ii]
+        if isum >= 0.2*itotal:
+            ii = npix*npix
+        ii += 1
+
+    ii = 0
+    jj = 0
+    regionpix = np.zeros(count)
+    regionpix_x = np.zeros(count)
+    regionpix_y = np.zeros(count)
+
+    isum = 0
+
+    while ii < count:
+        if ipix[ii] > 0:
+            regionpix[jj] = sortedind[ii]
+
+            regionpix_2d = np.unravel_index(sortedind[ii], shape=(npix, npix))
+            regionpix_x[jj] = regionpix_2d[1]
+            regionpix_y[jj] = regionpix_2d[0]
+
+            isum += ipix[ii]
+            jj += 1
+        if isum >= 0.2*itotal:
+            ii = count
+        ii += 1
+
+    regionpix_x = regionpix_x[0:count]
+    regionpix_y = regionpix_y[0:count]
+    a = np.zeros_like(regionpix)
+
+    # the following is required as fits files are big endian and skimage
+    # assumes little endian.
+    # https://stackoverflow.com/a/30284033/6106938
+    # https://en.wikipedia.org/wiki/Endianness
+    img = img.byteswap().newbyteorder()
+
+    for i in range(0, regionpix.shape[0]):
+
+        cenpix_x = int(regionpix_x[i])
+        cenpix_y = int(regionpix_y[i])
+
+        imgRot = rotate(img, 180., center=(cenpix_y, cenpix_x), preserve_range=True)
+        imgResid = np.abs(img - imgRot)
+        imgResidravel = np.ravel(imgResid)
+
+        regionmask = apercentre(apermask, [cenpix_y, cenpix_x])
+        regionind = np.nonzero(np.ravel(regionmask) == 1)[0]
+        region = imgravel[regionind]
+        regionResid = imgResidravel[regionind]
+
+        regionmask *= 0
+
+        a[i] = np.sum(regionResid) / (2. * np.sum(np.abs(region)))
+
+    a_min = np.min(a)
+    sub = np.argmin(a)
+
+    centroid_ind = int(regionpix[sub])
+    centroid = np.unravel_index(centroid_ind, shape=(npix, npix))
+
+    return centroid
+
+
+def apercentre(apermask: np.ndarray, pix: np.ndarray) -> np.ndarray:
+    """Function that centers a precomputed aperture mask on a given pixel.
+
+    Parameters
+    ----------
+
+    apermask : np.ndarray
+        Aperture mask that is to be centred.
+
+    pix: List[int]
+        Central pixel indicies.
+
+    Returns
+    -------
+
+    mask : np.ndarray
+        Returns aperture mask centered on central pixel, pix.
+    """
+
+    npix = apermask.shape[0]
+    cenpix = np.array([int(npix/2)+1, int(npix/2)+1])
+    delta = pix - cenpix
+    mask = apermask
+    # moves each axis by delta[n], i.e translate image left/right/up/down by
+    # desired amount
+    mask = np.roll(mask, delta[0], axis=0)
+    mask = np.roll(mask, delta[1], axis=1)
+
+    return mask
+
+
 if __name__ == '__main__':
     from argparse import ArgumentParser
     from pathlib import Path
@@ -489,8 +631,22 @@ if __name__ == '__main__':
         if not data.shape[0] == data.shape[1]:
             print("ERROR: wrong image size. Please preprocess data!")
             sys.exit()
-        sky, sky_err, flag = skybgr(data, imgsize)
-        print(sky, sky_err, flag)
+
+        # get skybackground value and error
+        sky, sky_err, flag = skybgr(data, imgsize)  # TODO: warn if flag is 1
+
         mask = pixelmap(data, sky + sky_err, 3)
         fits.writeto("result.fits", mask, overwrite=True)
-        data -= skybgr
+        data -= sky
+
+        objectpix = np.nonzero(mask == 1)
+        npix = data.shape[0]
+        cenpix = np.array([int(npix/2) + 1, int(npix/2) + 1])
+
+        distarray = distarr(npix, npix, cenpix)
+        objectdist = distarray[objectpix]
+        r_max = np.max(objectdist)
+        aperturepixmap = aperpixmap(npix, r_max, 9, 0.1)
+
+        apix = minapix(data, mask, aperturepixmap)
+        print(apix)
