@@ -1,10 +1,11 @@
+from typing import List, Tuple
+
+import numba as nb
 import numpy as np
 from astropy.io import fits
-import numba as nb
-from typing import List, Tuple
-from scipy.optimize import curve_fit
-from skimage.transform import resize, rotate
-from scipy.ndimage import uniform_filter
+from scipy import ndimage
+from scipy import optimize
+from skimage import transform
 
 
 def makeaperpixmaps(npix: int) -> None:
@@ -305,7 +306,7 @@ def gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
     offset = 10
     initial_guess = [amp, xo, yo, sigx, sigx, theta, offset]
     xdata = np.vstack((X.ravel(), Y.ravel()))
-    popt, pconv = curve_fit(Gaussian2D, (X, Y), img, p0=initial_guess, ftol=1e-4, xtol=1e-5, gtol=1e-2)
+    popt, pconv = optimize.curve_fit(Gaussian2D, (X, Y), img, p0=initial_guess, ftol=1e-4, xtol=1e-5, gtol=1e-2)
 
     return np.abs(popt)
 
@@ -386,10 +387,10 @@ def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
     imgsize = img.shape[0]
 
     # mean filter
-    img = uniform_filter(img, size=filtsize, mode="reflect")
+    img = ndimage.uniform_filter(img, size=filtsize, mode="reflect")
     # resize image to match PawlikMorph
     # TODO leave this as an option?
-    img = resize(img, (47, 47), anti_aliasing=False, preserve_range=True)
+    img = transform.resize(img, (47, 47), anti_aliasing=False, preserve_range=True)
 
     npix = img.shape[0]
     cenpix = np.array([int(npix/2), int(npix/2)])
@@ -429,7 +430,7 @@ def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
             break
 
     # resize binary image to original size
-    objmask = resize(objmask, (141, 141), order=0, mode="edge")
+    objmask = transform.resize(objmask, (141, 141), order=0, mode="edge")
     return objmask
 
 
@@ -522,7 +523,7 @@ def minapix(img: np.ndarray, mask: np.ndarray, apermask: np.ndarray) -> List[int
         cenpix_x = int(regionpix_x[i])
         cenpix_y = int(regionpix_y[i])
 
-        imgRot = rotate(img, 180., center=(cenpix_y, cenpix_x), preserve_range=True)
+        imgRot = transform.rotate(img, 180., center=(cenpix_y, cenpix_x), preserve_range=True)
         imgResid = np.abs(img - imgRot)
         imgResidravel = np.ravel(imgResid)
 
@@ -576,12 +577,13 @@ def apercentre(apermask: np.ndarray, pix: np.ndarray) -> np.ndarray:
 
 
 if __name__ == '__main__':
-    from argparse import ArgumentParser
-    from pathlib import Path
-    from astropy.io import fits
-    from astropy.utils.exceptions import AstropyWarning
     import sys
     import warnings
+    from argparse import ArgumentParser
+    from pathlib import Path
+
+    from astropy.io import fits
+    from astropy.utils.exceptions import AstropyWarning
 
     parser = ArgumentParser(description="Prepare images for analysis")
 
