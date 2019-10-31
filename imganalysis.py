@@ -576,6 +576,88 @@ def apercentre(apermask: np.ndarray, pix: np.ndarray) -> np.ndarray:
     return mask
 
 
+#         img, pixmap,   aperpixmap,apix,     rmax, angle,/noisecorrect
+def calcA(img, pixmap, apermask, centroid, angle, apermaskcut=None, noisecorrect=False):
+    """
+
+    Parameters
+    ----------
+
+
+    Returns
+    -------
+
+    """
+
+    cenpix_x = centroid[0]
+    cenpix_y = centroid[1]
+
+    # https://stackoverflow.com/a/30284033/6106938
+    img = img.byteswap().newbyteorder()
+    imgRot = transform.rotate(img, angle, center=(cenpix_y, cenpix_x), preserve_range=True)
+    imgResid = np.abs(img - imgRot)
+    imgravel = np.ravel(img)
+
+    if apermaskcut is None:
+        netmask = apermask
+    else:
+        # TODO: implement
+        print("ERROR! Not yet implmented!")
+        sys.exit()
+
+    imgResidravel = np.ravel(imgResid)
+    regionind = np.nonzero(np.ravel(netmask) == 1)[0]
+    region = imgravel[regionind]
+    regionResid = imgResidravel[regionind]
+
+    A = np.sum(regionResid) / 2. * np.sum(np.abs(region))
+
+    if noisecorrect:
+
+        # build "background noise" image using morphological dilation
+        # https://en.wikipedia.org/wiki/Dilation_(morphology)
+        bgrimg = np.zeros_like(img)
+        element = np.ones((9, 9))
+        mask = ndimage.morphology.binary_dilation(pixmap, structure=element)
+        maskind = np.nonzero(np.ravel(mask) == 1)[0]
+
+        bgrind = maskind.copy()
+        bgrpix = imgravel[bgrind]
+
+        if bgrind.shape[0] > (bgrind.shape[0] / 10.):
+            if maskind.shape[0] > 1:
+                if bgrind.shape[0] >= maskind.shape[0]:
+                    maskpix = bgrpix[0:maskind.shape[0]]
+                else:
+                    pixfrac = maskind.shape[0] / bgrind.shape[0]
+                    maskpix = bgrpix
+                    if pixfrac == float(round(pixfrac)):
+                        for p in range(1, int(pixfrac)):
+                            maskpix = [maskpix, bgrpix]
+                    else:
+                        for p in range(1, int(pixfrac)):
+                            maskpix = [maskpix, bgrpix]
+                        diff = maskind.shape[0] - maskpix.shape[0]
+                        maskpix = [maskpix, bgrpix[0:diff]]
+
+                bgrimg[bgrind] = bgrpix
+                bgrimg[maskind] = maskpix
+
+                bgrimgRot = transform.rotate(bgrimg, 180., center=(cenpix_y, cenpix_x), preserve_range=True)
+                bgrimgResid = np.abs(bgrimg - bgrimgRot)
+
+                bgrregionResid = bgrimgResid[regionind]
+
+                Abgr = np.sum(bgrregionResid) / (2.*np.sum(np.abs(region)))
+                A = A - Abgr
+            else:
+                Abgr = -99
+        else:
+            Abgr = -99
+
+    return [A, Abgr]
+
+
 if __name__ == '__main__':
     import sys
     import warnings
@@ -652,3 +734,5 @@ if __name__ == '__main__':
 
         apix = minapix(data, mask, aperturepixmap)
         print(apix)
+        angle = 180.
+        A = calcA(data, mask, aperturepixmap, apix, angle, noisecorrect=True)
