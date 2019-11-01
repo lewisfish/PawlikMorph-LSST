@@ -339,7 +339,7 @@ def Gaussian2D(xydata: List[float], amplitude: float,
         Parameters are: Amplitude, xo, yo, sigx, sigy, theta, offset
     '''
 
-    x = xydata[0].reshape((141, 141))  # TODO fix this!!!!
+    x = xydata[0].reshape((141, 141))  # TODO fix this, not simple to fix!!!!
     y = xydata[1].reshape((141, 141))
 
     a = (np.cos(theta)**2) / (2 * sigma_x**2) + \
@@ -576,16 +576,43 @@ def apercentre(apermask: np.ndarray, pix: np.ndarray) -> np.ndarray:
     return mask
 
 
-#         img, pixmap,   aperpixmap,apix,     rmax, angle,/noisecorrect
-def calcA(img, pixmap, apermask, centroid, angle, apermaskcut=None, noisecorrect=False):
-    """
+def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
+          centroid: List[int], angle: float, apermaskcut=None,
+          noisecorrect=False) -> List[float]:
+    """Function to calculate A, the asymmetery parameter. Near direct translation
+       of IDL code.
 
     Parameters
     ----------
 
+    img : np.ndarray
+        Image to be analysed.
+
+    pixmap : np.ndarray
+        Mask that covers object of interest.
+
+    apermask : np.ndarray
+        Array of the aperature mask image.
+
+    centroid : np.ndarray
+        Pixel position of the centroid to be used for rotation.
+
+    angle : float
+        Angle to rotate object, in degrees.
+
+    Optional
+    --------
+
+    apermaskcut : np.ndarray
+
+    noisecorrect : bool
+        Default value False. If true corrects for background noise
 
     Returns
     -------
+
+    A, Abgr : List(float)
+        Returns the asymmetery value and its background value.
 
     """
 
@@ -594,7 +621,8 @@ def calcA(img, pixmap, apermask, centroid, angle, apermaskcut=None, noisecorrect
 
     # https://stackoverflow.com/a/30284033/6106938
     img = img.byteswap().newbyteorder()
-    imgRot = transform.rotate(img, angle, center=(cenpix_y, cenpix_x), preserve_range=True)
+    imgRot = transform.rotate(img, angle, center=(cenpix_x, cenpix_y),
+                              preserve_range=True)
     imgResid = np.abs(img - imgRot)
     imgravel = np.ravel(img)
 
@@ -610,18 +638,20 @@ def calcA(img, pixmap, apermask, centroid, angle, apermaskcut=None, noisecorrect
     region = imgravel[regionind]
     regionResid = imgResidravel[regionind]
 
-    A = np.sum(regionResid) / 2. * np.sum(np.abs(region))
+    A = np.sum(regionResid) / (2. * np.sum(np.abs(region)))
 
     if noisecorrect:
 
         # build "background noise" image using morphological dilation
         # https://en.wikipedia.org/wiki/Dilation_(morphology)
         bgrimg = np.zeros_like(img)
+        bgrimg = np.ravel(bgrimg)
         element = np.ones((9, 9))
+
         mask = ndimage.morphology.binary_dilation(pixmap, structure=element)
         maskind = np.nonzero(np.ravel(mask) == 1)[0]
 
-        bgrind = maskind.copy()
+        bgrind = np.nonzero(np.ravel(mask) != 1)[0]
         bgrpix = imgravel[bgrind]
 
         if bgrind.shape[0] > (bgrind.shape[0] / 10.):
@@ -638,13 +668,15 @@ def calcA(img, pixmap, apermask, centroid, angle, apermaskcut=None, noisecorrect
                         for p in range(1, int(pixfrac)):
                             maskpix = [maskpix, bgrpix]
                         diff = maskind.shape[0] - maskpix.shape[0]
-                        maskpix = [maskpix, bgrpix[0:diff]]
+                        maskpix = maskpix
+                        maskpix = np.append(maskpix, bgrpix[0:diff])
 
                 bgrimg[bgrind] = bgrpix
                 bgrimg[maskind] = maskpix
 
+                bgrimg = bgrimg.reshape((141, 141))
                 bgrimgRot = transform.rotate(bgrimg, 180., center=(cenpix_y, cenpix_x), preserve_range=True)
-                bgrimgResid = np.abs(bgrimg - bgrimgRot)
+                bgrimgResid = np.ravel(np.abs(bgrimg - bgrimgRot))
 
                 bgrregionResid = bgrimgResid[regionind]
 
@@ -660,6 +692,7 @@ def calcA(img, pixmap, apermask, centroid, angle, apermaskcut=None, noisecorrect
 
 if __name__ == '__main__':
     import sys
+    import time
     import warnings
     from argparse import ArgumentParser
     from pathlib import Path
@@ -718,9 +751,10 @@ if __name__ == '__main__':
 
         # get skybackground value and error
         sky, sky_err, flag = skybgr(data, imgsize)  # TODO: warn if flag is 1
-
+        # sky = 33903.173
         mask = pixelmap(data, sky + sky_err, 3)
-        fits.writeto("result.fits", mask, overwrite=True)
+        # mask = fits.getdata("target.fits")
+        # fits.writeto("result.fits", mask, overwrite=True)
         data -= sky
 
         objectpix = np.nonzero(mask == 1)
@@ -733,6 +767,7 @@ if __name__ == '__main__':
         aperturepixmap = aperpixmap(npix, r_max, 9, 0.1)
 
         apix = minapix(data, mask, aperturepixmap)
-        print(apix)
         angle = 180.
+
         A = calcA(data, mask, aperturepixmap, apix, angle, noisecorrect=True)
+        print(A)
