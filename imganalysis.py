@@ -513,12 +513,6 @@ def minapix(img: np.ndarray, mask: np.ndarray, apermask: np.ndarray) -> List[int
     regionpix_y = regionpix_y[0:count]
     a = np.zeros_like(regionpix)
 
-    # the following is required as fits files are big endian and skimage
-    # assumes little endian.
-    # https://stackoverflow.com/a/30284033/6106938
-    # https://en.wikipedia.org/wiki/Endianness
-    img = img.byteswap().newbyteorder()
-
     for i in range(0, regionpix.shape[0]):
 
         cenpix_x = int(regionpix_x[i])
@@ -620,8 +614,6 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
     cenpix_x = centroid[0]
     cenpix_y = centroid[1]
 
-    # https://stackoverflow.com/a/30284033/6106938
-    img = img.byteswap().newbyteorder()
     imgRot = transform.rotate(img, angle, center=(cenpix_x, cenpix_y),
                               preserve_range=True)
     imgResid = np.abs(img - imgRot)
@@ -746,13 +738,19 @@ if __name__ == '__main__':
             print(f"Fits image:{file.name} does not exist!")
             continue
         data = fits.getdata(file)
+        # The following is required as fits files are big endian and skimage
+        # assumes little endian.
+        # https://stackoverflow.com/a/30284033/6106938
+        # https://en.wikipedia.org/wiki/Endianness
+        # https://stackoverflow.com/a/30284033/6106938
+        data = data.byteswap().newbyteorder()
+
         if not data.shape[0] == data.shape[1]:
             print("ERROR: wrong image size. Please preprocess data!")
             sys.exit()
 
         # get skybackground value and error
         sky, sky_err, flag = skybgr(data, imgsize)  # TODO: warn if flag is 1
-        # sky = 33903.173
         mask = pixelmap(data, sky + sky_err, 3)
         # mask = fits.getdata("target.fits")
         # fits.writeto("result.fits", mask, overwrite=True)
