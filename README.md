@@ -31,11 +31,11 @@ First clone this repo. Then either use pip or conda to install dependencies:
  - Scikit-image 0.14.0+
  
  ## TODO
-  - Calculate Asymmetry
-  - Calculate outer asymmetery
-  - Calculate shape asymmetry
-  - Analysis LSST images and other similar images
-  - Run on LSST's data centre in Edinburgh
-  - Make it all fast
-  - Notebook integration
-  - Docker integration?
+  - [x] Calculate Asymmetry
+  - [ ] Calculate outer asymmetery
+  - [ ] Calculate shape asymmetry
+  - [ ] Analysis LSST images and other similar images
+  - [ ] Run on LSST's data centre in Edinburgh
+  - [ ] Make it all fast
+  - [ ] Notebook integration
+  - [ ] Docker integration?
