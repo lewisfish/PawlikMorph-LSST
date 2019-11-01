@@ -339,8 +339,8 @@ def Gaussian2D(xydata: List[float], amplitude: float,
         Parameters are: Amplitude, xo, yo, sigx, sigy, theta, offset
     '''
 
-    x = xydata[0].reshape((141, 141))  # TODO fix this, not simple to fix!!!!
-    y = xydata[1].reshape((141, 141))
+    x = xydata[0].reshape((xydata[0].shape[0], xydata[0].shape[1]))
+    y = xydata[1].reshape((xydata[1].shape[0], xydata[1].shape[1]))
 
     a = (np.cos(theta)**2) / (2 * sigma_x**2) + \
         (np.sin(theta)**2) / (2*sigma_y**2)
@@ -390,7 +390,8 @@ def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
     img = ndimage.uniform_filter(img, size=filtsize, mode="reflect")
     # resize image to match PawlikMorph
     # TODO leave this as an option?
-    img = transform.resize(img, (47, 47), anti_aliasing=False, preserve_range=True)
+    img = transform.resize(img, (int(imgsize / filtsize), int(imgsize / filtsize)),
+                           anti_aliasing=False, preserve_range=True)
 
     npix = img.shape[0]
     cenpix = np.array([int(npix/2), int(npix/2)])
@@ -430,7 +431,7 @@ def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
             break
 
     # resize binary image to original size
-    objmask = transform.resize(objmask, (141, 141), order=0, mode="edge")
+    objmask = transform.resize(objmask, (imgsize, imgsize), order=0, mode="edge")
     return objmask
 
 
@@ -639,7 +640,7 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
     regionResid = imgResidravel[regionind]
 
     A = np.sum(regionResid) / (2. * np.sum(np.abs(region)))
-
+    Abgr = 0
     if noisecorrect:
 
         # build "background noise" image using morphological dilation
@@ -674,7 +675,7 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
                 bgrimg[bgrind] = bgrpix
                 bgrimg[maskind] = maskpix
 
-                bgrimg = bgrimg.reshape((141, 141))
+                bgrimg = bgrimg.reshape((img.shape[0], img.shape[0]))
                 bgrimgRot = transform.rotate(bgrimg, 180., center=(cenpix_y, cenpix_x), preserve_range=True)
                 bgrimgResid = np.ravel(np.abs(bgrimg - bgrimgRot))
 
