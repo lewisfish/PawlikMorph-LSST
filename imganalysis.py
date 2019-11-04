@@ -7,14 +7,19 @@ from scipy import ndimage
 from scipy import optimize
 from skimage import transform
 
+from gaussfitter import twodgaussian, moments
 
-def makeaperpixmaps(npix: int) -> None:
+
+def makeaperpixmaps(npix: int, folderpath=None) -> None:
     '''Writes the aperture binary masks out after calculation.
 
     Parameters
     ----------
     npix : int
         Width of aperture image.
+
+    folderpath : Pathlib object
+        Path to the folder where the aperture masks should be saved.
 
     Returns
     -------
@@ -32,7 +37,11 @@ def makeaperpixmaps(npix: int) -> None:
     for i in range(0, numaper):
 
         aperturepixelmap = aperpixmap(npix, r_aper[i], 9, .1)
-        fits.writeto("aperture" + str(i) + ".fits", aperturepixelmap, overwrite=True)
+        if folderpath:
+            fileout = folderpath / f"aperture{i}.fits"
+        else:
+            fileout = f"aperture{i}.fits"
+        fits.writeto(fileout, aperturepixelmap, overwrite=True)
 
 
 @nb.njit
@@ -210,6 +219,7 @@ def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
         flag indicates that the image size was less than ideal.
     '''
 
+    flag = 0
     npix = imgsize
     cenpix = np.array([int(npix/2) + 1, int(npix/2) + 1])
     distarrvar = distarr(npix, npix, cenpix)
@@ -219,8 +229,8 @@ def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
 
     yfit = gauss2dfit(img, imgsize)
     fact = 2 * np.sqrt(2 * np.log(2))
-    fwhm_x = fact * np.abs(yfit[3])
-    fwhm_y = fact * np.abs(yfit[4])
+    fwhm_x = fact * np.abs(yfit[4])
+    fwhm_y = fact * np.abs(yfit[5])
     r_in = 2. * max(fwhm_x, fwhm_y)
 
     skyind = np.nonzero(distarrvar > r_in)
@@ -247,7 +257,7 @@ def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
             w = 0
             clipsteps = skyregion.shape[0]
 
-            # Begin sigma clipping until convergence/
+            # Begin sigma clipping until convergence
             while w < clipsteps:
 
                 skyind = np.nonzero(np.abs(skyregion - mean_sky) < 3. * sigma_sky)
@@ -266,8 +276,12 @@ def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
                     w += 1
                 mode_old = mode_new
 
-        sky = mode_sky
-        sky_err = sigma_sky
+            sky = mode_sky
+            sky_err = sigma_sky
+    else:
+        sky = -99
+        sky_err = -99
+        flag = 1
 
     return sky, sky_err, flag
 
@@ -295,66 +309,20 @@ def gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
     y = np.linspace(0, imgsize-1, imgsize)
     X, Y = np.meshgrid(x, y)
 
-    # convert image to 1D array for fitting purposes
-    img = img.ravel()
+    # guess intital parameters from calculation of moments
+    initial_guess = moments(img)
 
-    # Guess parameters for fit
-    amp = np.amax(img)
-    xo, yo = np.unravel_index(np.argmax(img), (imgsize, imgsize))
-    sigx = np.std(img)
-    theta = 0
-    offset = 10
-    initial_guess = [amp, xo, yo, sigx, sigx, theta, offset]
+    # convert image to 1D array for fitting purposes
+    imgravel = img.ravel()
+
     xdata = np.vstack((X.ravel(), Y.ravel()))
-    popt, pconv = optimize.curve_fit(Gaussian2D, (X, Y), img, p0=initial_guess, ftol=1e-4, xtol=1e-5, gtol=1e-2)
+    popt, pconv = optimize.curve_fit(twodgaussian, (X, Y), imgravel, p0=initial_guess)
 
     return np.abs(popt)
 
 
-@nb.njit
-def Gaussian2D(xydata: List[float], amplitude: float,
-               xo: float, yo: float, sigma_x: float, sigma_y: float,
-               theta: float, offset: float) -> List[float]:
-    '''Calculates a 2D Gaussian distribution.
-
-    Parameters
-    ----------
-    xydata : List[float], List[float]
-        Stack of x and y values values. xydata[0] is x and xydata[1] is y
-    amplitude: float
-        Amplitude of Gaussian.
-    xo, yo: float
-        Centre point of Gaussian distribution.
-    sigma_x, sigma_y : float
-        Standard deviation of Gaussian distribution in x and y directions.
-    theta : float
-        Angle of Gaussian distribution.
-    offset : float
-        Offset of the Gaussian distribution.
-    Returns
-    -------
-    g.ravel() : List[float]
-        1D array of computed Gaussian distribution. Array is 1D so that
-        function is compatible with Scpiy's curve_fit.
-        Parameters are: Amplitude, xo, yo, sigx, sigy, theta, offset
-    '''
-
-    x = xydata[0].reshape((xydata[0].shape[0], xydata[0].shape[1]))
-    y = xydata[1].reshape((xydata[1].shape[0], xydata[1].shape[1]))
-
-    a = (np.cos(theta)**2) / (2 * sigma_x**2) + \
-        (np.sin(theta)**2) / (2*sigma_y**2)
-    b = -(np.sin(2*theta)) / (4 * sigma_x**2) + \
-         (np.sin(2*theta)) / (4*sigma_y**2)
-    c = (np.sin(theta)**2) / (2 * sigma_x**2) + \
-        (np.cos(theta)**2) / (2*sigma_y**2)
-    g = offset + amplitude * np.exp(-(a * ((x - xo)**2) +
-                                    2 * b * (x - xo) * (y - yo) +
-                                    c * ((y - yo)**2)))
-    return g.ravel()
-
-
 def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
+    # from matplotlib import animation
     ''' Calculates an object binary mask using a mean filter and 8 connected
         pixels and a given threshold.
 
@@ -415,7 +383,7 @@ def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
     # check 8 connected pixels and add to array if above threshold
     # remove pixel from array when its been operated on
     while pixelsleft:
-        x, y = pixels.pop()
+        x, y = pixels.pop(0)
         xcur = x
         ycur = y
         for i in range(0, 8):
@@ -705,17 +673,16 @@ if __name__ == '__main__':
         print("Script needs input images to work!!")
         sys.exit()
 
-    # add files to a list #TODO more efficient way? i.e generator or something?
+    # get image size. Assume all images the same size and are square
+    # suppress warnings about unrecognised keywords
+    warnings.simplefilter('ignore', category=AstropyWarning)
+    # add files to a list
     files = []
     if args.file:
         files.append(Path(args.file))
     elif args.folder:
-        print("Folders not supported yet!")
-        sys.exit()
-
-    # get image size. Assume all images the same size and are square
-    # suppress warnings about unrecognised keywords
-    warnings.simplefilter('ignore', category=AstropyWarning)
+        # TODO change to a generator
+        files = list(Path(args.folder).glob("sdss*.fits"))
     data = fits.getdata(files[0])
     imgsize = data.shape[0]
 
@@ -723,18 +690,28 @@ if __name__ == '__main__':
     # Checks if they already exist, if so skips computation
     # TODO: probably could do this better
     if args.aperpixmap:
-        if Path("aperture32.fits").exists():
-            tmpdata = fits.getdata(Path("aperture32.fits"))
+        cenpixtmp = (imgsize / 2.) + 1
+        tmp = np.arange(cenpixtmp) + 1.
+        aperpath = Path(args.folder).parents[0] / "aperpixmaps/"
+        if len(list(aperpath.glob("aperture*.fits"))) == int(cenpixtmp) + 1:
+            tmpdata = fits.getdata(aperpath / "aperture50.fits")
             if tmpdata.shape[0] != imgsize:
                 makeaperpixmaps(imgsize)
         else:
-            makeaperpixmaps(imgsize)
+            try:
+                aperpath.mkdir()
+            except FileExistsError:
+                # folder already exists so pass
+                pass
+            makeaperpixmaps(imgsize, aperpath)
 
     for file in files:
         if not file.exists():
             print(f"Fits image:{file.name} does not exist!")
             continue
+        print(file)
         data = fits.getdata(file)
+        imgsize = data.shape[0]
         # The following is required as fits files are big endian and skimage
         # assumes little endian.
         # https://stackoverflow.com/a/30284033/6106938
@@ -748,19 +725,20 @@ if __name__ == '__main__':
 
         # get skybackground value and error
         sky, sky_err, flag = skybgr(data, imgsize)  # TODO: warn if flag is 1
+        if flag == 1:
+            print(f"ERROR! Skybgr not calculated for {file}")
         mask = pixelmap(data, sky + sky_err, 3)
         # mask = fits.getdata("target.fits")
         # fits.writeto("result.fits", mask, overwrite=True)
         data -= sky
 
         objectpix = np.nonzero(mask == 1)
-        npix = data.shape[0]
-        cenpix = np.array([int(npix/2) + 1, int(npix/2) + 1])
+        cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
 
-        distarray = distarr(npix, npix, cenpix)
+        distarray = distarr(imgsize, imgsize, cenpix)
         objectdist = distarray[objectpix]
         r_max = np.max(objectdist)
-        aperturepixmap = aperpixmap(npix, r_max, 9, 0.1)
+        aperturepixmap = aperpixmap(imgsize, r_max, 9, 0.1)
 
         apix = minapix(data, mask, aperturepixmap)
         angle = 180.

@@ -3,3 +3,5 @@ libs/*
 *.pl
 .pytest*
 __pycache__*
+exp/*
+*.mp4
