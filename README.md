@@ -29,11 +29,12 @@ First clone this repo. Then either use pip or conda to install dependencies:
  - Numba 0.38.1+
  - Astropy 3.0.3+
  - Scikit-image 0.14.0+
+ - [Gaussfitter](https://github.com/keflavich/gaussfitter) modified version included as gaussfitter.py
  
  ## TODO
   - [x] Calculate Asymmetry
+  - [x] Calculate shape asymmetry
   - [ ] Calculate outer asymmetery
-  - [ ] Calculate shape asymmetry
   - [ ] Analysis LSST images and other similar images
   - [ ] Run on LSST's data centre in Edinburgh
   - [ ] Make it all fast
