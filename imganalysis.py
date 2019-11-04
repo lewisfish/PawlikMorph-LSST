@@ -621,10 +621,10 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
                     maskpix = bgrpix
                     if pixfrac == float(round(pixfrac)):
                         for p in range(1, int(pixfrac)):
-                            maskpix = [maskpix, bgrpix]  # these line currently cause the code to fail to executed
+                            maskpix = np.append(maskpix, bgrpix)
                     else:
                         for p in range(1, int(pixfrac)):
-                            maskpix = [maskpix, bgrpix]  # these line currently cause the code to fail to executed
+                            maskpix = np.append(maskpix, bgrpix)
                         diff = maskind.shape[0] - maskpix.shape[0]
                         maskpix = np.append(maskpix, bgrpix[0:diff])
 
