@@ -10,6 +10,9 @@ Currently only replicates the ability to generate aperture pixel maps and object
  - -h, shows the help screen
  - -f FILE, Path to a single image for analysis
  - -fo FOLDER, Path to folder of images for analysis
+ - -A, runs the asymmetry calculation
+ - -As, Runs the shape asymmetry calculation
+ - -Aall, Runs all the implmented asymmetry calculations
  - -aperpixmap, Generate aperture pixel maps
  
  Example
