@@ -595,12 +595,9 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
     angle : float
         Angle to rotate object, in degrees.
 
-    Optional
-    --------
+    apermaskcut : np.ndarray, optional
 
-    apermaskcut : np.ndarray
-
-    noisecorrect : bool
+    noisecorrect : bool, optional
         Default value False. If true corrects for background noise
 
     Returns
@@ -656,12 +653,11 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
                     maskpix = bgrpix
                     if pixfrac == float(round(pixfrac)):
                         for p in range(1, int(pixfrac)):
-                            maskpix = [maskpix, bgrpix]
+                            maskpix = [maskpix, bgrpix]  # these line currently cause the code to fail to executed
                     else:
                         for p in range(1, int(pixfrac)):
-                            maskpix = [maskpix, bgrpix]
+                            maskpix = [maskpix, bgrpix]  # these line currently cause the code to fail to executed
                         diff = maskind.shape[0] - maskpix.shape[0]
-                        maskpix = maskpix
                         maskpix = np.append(maskpix, bgrpix[0:diff])
 
                 bgrimg[bgrind] = bgrpix
@@ -695,12 +691,12 @@ if __name__ == '__main__':
 
     parser = ArgumentParser(description="Prepare images for analysis")
 
-    parser.add_argument("-f", "--file", type=str, help="Path to single image to be prepared")
-    parser.add_argument("-fo", "--folder", type=str, help="Path to folder where images are saved")
-    parser.add_argument("-A", action="store_true", help="Calculate asymmetry")
-    parser.add_argument("-Ao", action="store_true", help="Calculate outer asymmetry")
-    parser.add_argument("-As", action="store_true", help="Calculate shape asymmetry")
-    parser.add_argument("-Aall", action="store_true", help="Calculate all asymmetries")
+    parser.add_argument("-f", "--file", type=str, help="Path to single image to be analysed")
+    parser.add_argument("-fo", "--folder", type=str, help="Path to folder where images are to be analysed")
+    parser.add_argument("-A", action="store_true", help="Calculate asymmetry parameter")
+    # parser.add_argument("-Ao", action="store_true", help="Calculate outer asymmetry parameter")
+    parser.add_argument("-As", action="store_true", help="Calculate shape asymmetry parameter")
+    parser.add_argument("-Aall", action="store_true", help="Calculate all asymmetries parameters")
     parser.add_argument("-aperpixmap", action="store_true", help="Calculate aperature pixel maps")
 
     args = parser.parse_args()
@@ -725,6 +721,7 @@ if __name__ == '__main__':
 
     # Generate binary aperture masks for computation of light profiles
     # Checks if they already exist, if so skips computation
+    # TODO: probably could do this better
     if args.aperpixmap:
         if Path("aperture32.fits").exists():
             tmpdata = fits.getdata(Path("aperture32.fits"))
@@ -768,5 +765,17 @@ if __name__ == '__main__':
         apix = minapix(data, mask, aperturepixmap)
         angle = 180.
 
-        A = calcA(data, mask, aperturepixmap, apix, angle, noisecorrect=True)
-        print(A)
+        if args.A or args.Aall:
+            A = calcA(data, mask, aperturepixmap, apix, angle, noisecorrect=True)
+
+        if args.As or args.Aall:
+            As = calcA(mask, mask, aperturepixmap, apix, angle)
+            if As[1] == 0:
+                print(f"As_180={As[0]}")
+            else:
+                print("ERROR! Flag != 0 in calcA (180)")
+            As90 = calcA(mask, mask, aperturepixmap, apix, 90.)
+            if As90[1] == 0:
+                print(f"As_90={As90[0]}")
+            else:
+                print("ERROR! Flag != 0 in calcA (90)")
