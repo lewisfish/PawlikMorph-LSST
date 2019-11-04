@@ -648,6 +648,7 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
 
 
 if __name__ == '__main__':
+    import csv
     import sys
     import time
     import warnings
@@ -705,6 +706,10 @@ if __name__ == '__main__':
                 pass
             makeaperpixmaps(imgsize, aperpath)
 
+    csvfile = open("parameters.csv", mode="w")
+    paramwriter = csv.writer(csvfile, delimiter=",")
+    paramwriter.writerow(["file", "sky", "sky_err", "A[0]", "A", "As", "As90"])
+
     for file in files:
         if not file.exists():
             print(f"Fits image:{file.name} does not exist!")
@@ -745,6 +750,7 @@ if __name__ == '__main__':
 
         if args.A or args.Aall:
             A = calcA(data, mask, aperturepixmap, apix, angle, noisecorrect=True)
+            print(f"A={A[0]}, Abgr={A[1]}")
 
         if args.As or args.Aall:
             As = calcA(mask, mask, aperturepixmap, apix, angle)
