@@ -667,6 +667,7 @@ if __name__ == '__main__':
     parser.add_argument("-As", action="store_true", help="Calculate shape asymmetry parameter")
     parser.add_argument("-Aall", action="store_true", help="Calculate all asymmetries parameters")
     parser.add_argument("-aperpixmap", action="store_true", help="Calculate aperature pixel maps")
+    parser.add_argument("-spm", "--savepixmap", action="store_true", help="Save calculated binary pixelmaps.")
 
     args = parser.parse_args()
 
@@ -691,7 +692,6 @@ if __name__ == '__main__':
         print(f"Fits image:{files[0].name} does not exist!")
         sys.exit()
 
-
     # Generate binary aperture masks for computation of light profiles
     # Checks if they already exist, if so skips computation
     # TODO: probably could do this better
@@ -711,15 +711,25 @@ if __name__ == '__main__':
                 pass
             makeaperpixmaps(imgsize, aperpath)
 
-    csvfile = open("parameters.csv", mode="w")
+    if args.folder:
+        outfolder = Path(args.folder).parents[0] / "output/"
+        if not outfolder.exists():
+            outfolder.mkdir()
+        outfile = outfolder / "parameters.csv"
+    else:
+        outfile = "parameters.csv"
+    csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
-    paramwriter.writerow(["file", "sky", "sky_err", "A[0]", "A", "As", "As90"])
+    paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "A", "As", "As90", "time"])
 
     for file in files:
+        s = time.time()
+
         if not file.exists():
             print(f"Fits image:{file.name} does not exist!")
             continue
-        print(file)
+        # print(file)
+
         data = fits.getdata(file)
         imgsize = data.shape[0]
         # The following is required as fits files are big endian and skimage
@@ -733,14 +743,18 @@ if __name__ == '__main__':
             print("ERROR: wrong image size. Please preprocess data!")
             sys.exit()
 
-        # get skybackground value and error
+        # get sky background value and error
         sky, sky_err, flag = skybgr(data, imgsize)  # TODO: warn if flag is 1
         if flag == 1:
             print(f"ERROR! Skybgr not calculated for {file}")
         mask = pixelmap(data, sky + sky_err, 3)
-        # mask = fits.getdata("target.fits")
-        # fits.writeto("result.fits", mask, overwrite=True)
         data -= sky
+
+        if args.savepixmap:
+            filename = file.name
+            filename = "pixelmap_" + filename
+            outfile = outfolder / filename
+            fits.writeto(outfile, mask, overwrite=True)
 
         objectpix = np.nonzero(mask == 1)
         cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
@@ -768,5 +782,7 @@ if __name__ == '__main__':
                 print(f"As_90={As90[0]}")
             else:
                 print("ERROR! Flag != 0 in calcA (90)")
-        paramwriter.writerow([f"{file}", f"{sky}", f"{sky_err}", f"{A[0]}", f"{A[1]}", f"{As[0]}", f"{As90[0]}"])
+        f = time.time()
+        timetaken = f - s
+        paramwriter.writerow([f"{file}", f"{apix}", f"{r_max}", f"{sky}", f"{sky_err}", f"{A[0]}", f"{A[1]}", f"{As[0]}", f"{As90[0]}", f"{timetaken}"])
         print(" ")
