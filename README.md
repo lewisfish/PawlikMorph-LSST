@@ -5,7 +5,7 @@ Currently only replicates the ability to generate aperture pixel maps and object
 
 ## Usage
 
-./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-aperpixmap]
+./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-aperpixmap] [-spm] [-nic]
 
  - -h, shows the help screen
  - -f FILE, Path to a single image for analysis
@@ -14,6 +14,8 @@ Currently only replicates the ability to generate aperture pixel maps and object
  - -As, Runs the shape asymmetry calculation
  - -Aall, Runs all the implmented asymmetry calculations
  - -aperpixmap, Generate aperture pixel maps
+ - -spm, Save calculated binary pixelmaps
+ - -nic, Save cleaned image
  
  Example
   - ./imganalysis.py -f sample/sdsscutout_211.51-0.31_rband.fits -aperpixmap
