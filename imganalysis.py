@@ -540,6 +540,107 @@ def apercentre(apermask: np.ndarray, pix: np.ndarray) -> np.ndarray:
     return mask
 
 
+def cleanimg(img: np.ndarray, pixmap: np.ndarray) -> np.ndarray:
+    '''Function that cleans the image of non overlapping sources, i.e outside
+       the objects binary pixelmap
+
+
+    Parameters
+    ----------
+
+    img : np.ndarray
+        Input image to be cleaned.
+    pixmap : np.ndarray
+        Binary pixelmap of object.
+
+    Returns
+    -------
+
+    imgclean : np.ndarray
+        Cleaned image.
+
+    '''
+
+    imgsize = img.shape[0]
+    imgravel = img.ravel()
+    imgclean = imgravel
+
+    # Dilate pixelmap
+    element = np.ones((9, 9))
+    mask = ndimage.morphology.binary_dilation(pixmap, structure=element)
+
+    skyind = np.nonzero(mask.ravel() != 1)[0]
+
+    if skyind.size > 10:
+
+        # find a threshold for defining sky pixels
+        meansky = np.mean(imgravel[skyind])
+        mediansky = np.median(imgravel[skyind])
+
+        if meansky <= mediansky:
+            thres = meansky
+        else:
+
+            sigmasky = np.std(imgravel[skyind])
+
+            mode_old = 3. * mediansky - 2.*meansky
+            mode_new = 0.0
+            w = 0
+            clipsteps = imgravel.size
+
+            while w < clipsteps:
+
+                skyind = np.nonzero(np.abs(imgravel[skyind] - meansky) < 3.*sigmasky)
+                meansky = np.mean(imgravel[skyind])
+                mediansky = np.median(imgravel[skyind])
+                sigmasky = np.std(imgravel[skyind])
+
+                mode_new = 3.*mediansky - 2.*meansky
+                mode_diff = abs(mode_old - mode_new)
+
+                if mode_diff < 0.01:
+                    modesky = mode_new
+                    w = clipsteps
+                else:
+                    w += 1
+
+                mode_old = mode_new
+
+            thres = modesky
+
+        # Mask out sources with random sky pixels
+        # elemnt wise boolean AND
+        skypix = np.nonzero((pixmap.ravel() != 1) & (imgravel > thres))
+
+        skypixels = imgravel[skypix]
+        allpixels = skypixels
+
+        if skypixels.size >= imgravel.size:
+            print("ERROR! No sources detected! Check image and pixel map.")
+        else:
+            pixfrac = imgravel.size / skypixels.size
+            if pixfrac == float(round(pixfrac)):
+                for p in range(1, int(pixfrac)):
+                    allpixels = np.append(allpixels, skypixels)
+            else:
+                for p in range(1, int(pixfrac)):
+                    allpixels = np.append(allpixels, skypixels)
+                diff = imgravel.shape[0] - allpixels.shape[0]
+                allpixels = np.append(allpixels, skypixels[0:diff])
+
+        # shuffle sky pixels randomly
+        np.random.shuffle(allpixels)
+
+        imgclean = np.where((pixmap.ravel() != 1) & (imgravel >= thres), allpixels, imgravel)
+    imgclean = imgclean.reshape((imgsize, imgsize))
+
+    # convert imgclean from object dtype to float dtype
+    imgclean[imgclean == None] = 0.
+    imgclean = imgclean.astype(np.float)
+
+    return imgclean
+
+
 def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
           centroid: List[int], angle: float, apermaskcut=None,
           noisecorrect=False) -> List[float]:
@@ -668,6 +769,7 @@ if __name__ == '__main__':
     parser.add_argument("-Aall", action="store_true", help="Calculate all asymmetries parameters")
     parser.add_argument("-aperpixmap", action="store_true", help="Calculate aperature pixel maps")
     parser.add_argument("-spm", "--savepixmap", action="store_true", help="Save calculated binary pixelmaps.")
+    parser.add_argument("-nic", "--noimageclean", action="store_true", help="Save cleaned image.")
 
     args = parser.parse_args()
 
@@ -749,6 +851,15 @@ if __name__ == '__main__':
             print(f"ERROR! Skybgr not calculated for {file}")
         mask = pixelmap(data, sky + sky_err, 3)
         data -= sky
+
+        # clean image of external sources
+        data = cleanimg(data, mask)
+        if args.noimageclean:
+            filename = file.name
+            filename = "clean_" + filename
+            outfile = outfolder / filename
+            fits.writeto(outfile, img, overwrite=True)
+        sys.exit()
 
         if args.savepixmap:
             filename = file.name
