@@ -684,8 +684,13 @@ if __name__ == '__main__':
     elif args.folder:
         # TODO change to a generator
         files = list(Path(args.folder).glob("sdss*.fits"))
-    data = fits.getdata(files[0])
-    imgsize = data.shape[0]
+    if files[0].exists():
+        data = fits.getdata(files[0])
+        imgsize = data.shape[0]
+    else:
+        print(f"Fits image:{files[0].name} does not exist!")
+        sys.exit()
+
 
     # Generate binary aperture masks for computation of light profiles
     # Checks if they already exist, if so skips computation
