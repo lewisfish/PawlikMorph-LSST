@@ -226,8 +226,14 @@ def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
 
     # Define skyregion by fitting a Gaussian to the galaxy and computing on all
     # outwith this
+    try:
+        yfit = gauss2dfit(img, imgsize)
+    except RuntimeError:
+        sky = -99
+        sky_err = -99
+        flag = 1
+        return sky, sky_err, flag
 
-    yfit = gauss2dfit(img, imgsize)
     fact = 2 * np.sqrt(2 * np.log(2))
     fwhm_x = fact * np.abs(yfit[4])
     fwhm_y = fact * np.abs(yfit[5])
@@ -644,8 +650,8 @@ def cleanimg(img: np.ndarray, pixmap: np.ndarray) -> np.ndarray:
 def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
           centroid: List[int], angle: float, apermaskcut=None,
           noisecorrect=False) -> List[float]:
-    """Function to calculate A, the asymmetery parameter. Near direct translation
-       of IDL code.
+    """Function to calculate A, the asymmetery parameter. Near direct
+       translation of IDL code.
 
     Parameters
     ----------
@@ -759,17 +765,18 @@ if __name__ == '__main__':
     from astropy.io import fits
     from astropy.utils.exceptions import AstropyWarning
 
-    parser = ArgumentParser(description="Prepare images for analysis")
+    parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
     parser.add_argument("-f", "--file", type=str, help="Path to single image to be analysed")
     parser.add_argument("-fo", "--folder", type=str, help="Path to folder where images are to be analysed")
     parser.add_argument("-A", action="store_true", help="Calculate asymmetry parameter")
-    # parser.add_argument("-Ao", action="store_true", help="Calculate outer asymmetry parameter")
     parser.add_argument("-As", action="store_true", help="Calculate shape asymmetry parameter")
     parser.add_argument("-Aall", action="store_true", help="Calculate all asymmetries parameters")
     parser.add_argument("-aperpixmap", action="store_true", help="Calculate aperature pixel maps")
     parser.add_argument("-spm", "--savepixmap", action="store_true", help="Save calculated binary pixelmaps.")
     parser.add_argument("-nic", "--noimageclean", action="store_true", help="Save cleaned image.")
+    parser.add_argument("-li", "--largeimage", action="store_true", help="Use larger cutout for sky background estimation.")
+    # parser.add_argument("-Ao", action="store_true", help="Calculate outer asymmetry parameter")
 
     args = parser.parse_args()
 
@@ -786,7 +793,7 @@ if __name__ == '__main__':
         files.append(Path(args.file))
     elif args.folder:
         # TODO change to a generator
-        files = list(Path(args.folder).glob("sdss*.fits"))
+        files = list(Path(args.folder).glob("sdsscutout*.fits"))
     if files[0].exists():
         data = fits.getdata(files[0])
         imgsize = data.shape[0]
@@ -822,7 +829,8 @@ if __name__ == '__main__':
         outfile = "parameters.csv"
     csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
-    paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "A", "As", "As90", "time"])
+    paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "A",
+                          "As", "As90", "time"])
 
     for file in files:
         s = time.time()
@@ -846,9 +854,20 @@ if __name__ == '__main__':
             sys.exit()
 
         # get sky background value and error
-        sky, sky_err, flag = skybgr(data, imgsize)  # TODO: warn if flag is 1
+        if args.largeimage:
+            filename = file.name
+            filename = filename.replace("sdss", "sdssl", 1)
+            datatmp = fits.getdata(Path(args.folder) / Path(filename))
+            sky, sky_err, flag = skybgr(datatmp, datatmp.shape[0])  # TODO: warn if flag is 1
+        else:
+            sky, sky_err, flag = skybgr(data, imgsize)  # TODO: warn if flag is 1
+
         if flag == 1:
             print(f"ERROR! Skybgr not calculated for {file}")
+            paramwriter.writerow([f"{file}", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0"])
+            print(" ")
+            continue
+
         mask = pixelmap(data, sky + sky_err, 3)
         data -= sky
 
@@ -858,8 +877,7 @@ if __name__ == '__main__':
             filename = file.name
             filename = "clean_" + filename
             outfile = outfolder / filename
-            fits.writeto(outfile, img, overwrite=True)
-        sys.exit()
+            fits.writeto(outfile, data, overwrite=True)
 
         if args.savepixmap:
             filename = file.name
@@ -880,20 +898,13 @@ if __name__ == '__main__':
 
         if args.A or args.Aall:
             A = calcA(data, mask, aperturepixmap, apix, angle, noisecorrect=True)
-            print(f"A={A[0]}, Abgr={A[1]}")
 
         if args.As or args.Aall:
             As = calcA(mask, mask, aperturepixmap, apix, angle)
-            if As[1] == 0:
-                print(f"As_180={As[0]}")
-            else:
-                print("ERROR! Flag != 0 in calcA (180)")
             As90 = calcA(mask, mask, aperturepixmap, apix, 90.)
-            if As90[1] == 0:
-                print(f"As_90={As90[0]}")
-            else:
-                print("ERROR! Flag != 0 in calcA (90)")
+
         f = time.time()
         timetaken = f - s
         paramwriter.writerow([f"{file}", f"{apix}", f"{r_max}", f"{sky}", f"{sky_err}", f"{A[0]}", f"{A[1]}", f"{As[0]}", f"{As90[0]}", f"{timetaken}"])
-        print(" ")
+
+    csvfile.close()

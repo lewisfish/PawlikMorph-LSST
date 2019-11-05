@@ -27,7 +27,6 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 
-import numba as nb
 import numpy as np
 from typing import List
 
@@ -83,7 +82,6 @@ def moments(data: np.ndarray, angle_guess=45.0) -> List[float]:
     return params
 
 
-@nb.njit
 def twodgaussian(xydata, offset: float, amplitude: float, xo: float, yo: float,
                  sigma_x: float, sigma_y: float, theta: float):
     """
