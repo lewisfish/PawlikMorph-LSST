@@ -240,7 +240,8 @@ def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
         # Flag the measurement if sky region smaller than 20000 pixels
         # (Simard et al. 2011)
         if skyregion.shape[0] < 20000:
-            flag = 1
+            print(f"Warning! skyregion too small {skyregion.shape[0]}")
+            # flag = 1
 
         mean_sky = np.mean(skyregion)
         median_sky = np.median(skyregion)
@@ -608,7 +609,6 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
 
         mask = ndimage.morphology.binary_dilation(pixmap, structure=element)
         maskind = np.nonzero(np.ravel(mask) == 1)[0]
-
         bgrind = np.nonzero(np.ravel(mask) != 1)[0]
         bgrpix = imgravel[bgrind]
 
@@ -763,3 +763,5 @@ if __name__ == '__main__':
                 print(f"As_90={As90[0]}")
             else:
                 print("ERROR! Flag != 0 in calcA (90)")
+        paramwriter.writerow([f"{file}", f"{sky}", f"{sky_err}", f"{A[0]}", f"{A[1]}", f"{As[0]}", f"{As90[0]}"])
+        print(" ")
