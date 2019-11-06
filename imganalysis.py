@@ -850,7 +850,7 @@ if __name__ == '__main__':
         outfile = "parameters.csv"
     csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
-    paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "A",
+    paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
                           "As", "As90", "time"])
 
     for file in files:

@@ -65,7 +65,6 @@ def moments(data: np.ndarray, angle_guess=90.0) -> List[float]:
     row = data[:, int(x)]
     width_y = np.sqrt(np.abs((np.arange(row.size)-x)**2*row).sum() / np.abs(row).sum())
 
-    width = (width_x + width_y) / 2.
     height = np.median(data.ravel())
     amplitude = data.max() - height
 
