@@ -200,7 +200,7 @@ def subdistarr(npix: int, nsubpix: int, cenpix: List[int]) -> np.ndarray:
     return subdist
 
 
-def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
+def skybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, int]:
     '''Function that calculates the sky background value.
 
     Parameters
@@ -209,6 +209,9 @@ def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
         Image data from which the background will be calculated.
     imgsize : int
         Size of the image.
+    smallimg : np.ndarray, optional
+        Smaller cutout of object. If provided Gaussian is fitted on this
+        instead of larger cutout as the fitter sometimes fails on larger images.
 
     Returns
     -------
@@ -227,17 +230,26 @@ def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
     # Define skyregion by fitting a Gaussian to the galaxy and computing on all
     # outwith this
     try:
-        yfit = gauss2dfit(img, imgsize)
+        if smallimg is not None:
+            yfit = gauss2dfit(smallimg, smallimg.shape[0])
+        else:
+            yfit = gauss2dfit(img, imgsize)
     except RuntimeError:
         sky = -99
         sky_err = -99
-        flag = 1
+        flag = 2
         return sky, sky_err, flag
 
     fact = 2 * np.sqrt(2 * np.log(2))
     fwhm_x = fact * np.abs(yfit[4])
     fwhm_y = fact * np.abs(yfit[5])
     r_in = 2. * max(fwhm_x, fwhm_y)
+
+    fig, ax = plt.subplots()
+    circle = plt.Circle(cenpix, r_in, fill=False)
+    ax.imshow(img)
+    ax.add_artist(circle)
+    plt.show()
 
     skyind = np.nonzero(distarrvar > r_in)
     skyregion = img[skyind]
@@ -247,7 +259,6 @@ def skybgr(img: np.ndarray, imgsize: int) -> Tuple[float, float, int]:
         # (Simard et al. 2011)
         if skyregion.shape[0] < 20000:
             print(f"Warning! skyregion too small {skyregion.shape[0]}")
-            # flag = 1
 
         mean_sky = np.mean(skyregion)
         median_sky = np.median(skyregion)
@@ -323,7 +334,7 @@ def gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
     imgravel = img.ravel()
 
     xdata = np.vstack((X.ravel(), Y.ravel()))
-    popt, pconv = optimize.curve_fit(twodgaussian, (X, Y), imgravel, p0=initial_guess)
+    popt, pconv = optimize.curve_fit(twodgaussian, (X, Y), imgravel, p0=initial_guess, maxfev=10000)
 
     return np.abs(popt)
 
@@ -767,16 +778,26 @@ if __name__ == '__main__':
 
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
-    parser.add_argument("-f", "--file", type=str, help="Path to single image to be analysed")
-    parser.add_argument("-fo", "--folder", type=str, help="Path to folder where images are to be analysed")
-    parser.add_argument("-A", action="store_true", help="Calculate asymmetry parameter")
-    parser.add_argument("-As", action="store_true", help="Calculate shape asymmetry parameter")
-    parser.add_argument("-Aall", action="store_true", help="Calculate all asymmetries parameters")
-    parser.add_argument("-aperpixmap", action="store_true", help="Calculate aperature pixel maps")
-    parser.add_argument("-spm", "--savepixmap", action="store_true", help="Save calculated binary pixelmaps.")
-    parser.add_argument("-nic", "--noimageclean", action="store_true", help="Save cleaned image.")
-    parser.add_argument("-li", "--largeimage", action="store_true", help="Use larger cutout for sky background estimation.")
-    # parser.add_argument("-Ao", action="store_true", help="Calculate outer asymmetry parameter")
+    parser.add_argument("-f", "--file", type=str,
+                        help="Path to single image to be analysed")
+    parser.add_argument("-fo", "--folder", type=str,
+                        help="Path to folder where images are to be analysed")
+    parser.add_argument("-A", action="store_true",
+                        help="Calculate asymmetry parameter")
+    parser.add_argument("-As", action="store_true",
+                        help="Calculate shape asymmetry parameter")
+    parser.add_argument("-Aall", action="store_true",
+                        help="Calculate all asymmetries parameters")
+    parser.add_argument("-aperpixmap", action="store_true",
+                        help="Calculate aperature pixel maps")
+    parser.add_argument("-spm", "--savepixmap", action="store_true",
+                        help="Save calculated binary pixelmaps.")
+    parser.add_argument("-nic", "--noimageclean", action="store_true",
+                        help="Save cleaned image.")
+    parser.add_argument("-li", "--largeimage", action="store_true",
+                        help="Use larg cutout for sky background estimation.")
+    # parser.add_argument("-Ao", action="store_true",
+    #                     help="Calculate outer asymmetry parameter")
 
     args = parser.parse_args()
 
@@ -857,13 +878,22 @@ if __name__ == '__main__':
         if args.largeimage:
             filename = file.name
             filename = filename.replace("sdss", "sdssl", 1)
-            datatmp = fits.getdata(Path(args.folder) / Path(filename))
-            sky, sky_err, flag = skybgr(datatmp, datatmp.shape[0])  # TODO: warn if flag is 1
+            infile = Path(args.folder) / Path(filename)
+            if infile.exists():
+                datatmp = fits.getdata(Path(args.folder) / Path(filename))
+                sky, sky_err, flag = skybgr(datatmp, datatmp.shape[0], data)
+            else:
+                print(f"{infile} does not exist!")
+                sky, sky_err, flag = skybgr(data, imgsize)
         else:
-            sky, sky_err, flag = skybgr(data, imgsize)  # TODO: warn if flag is 1
+            sky, sky_err, flag = skybgr(data, imgsize)
 
-        if flag == 1:
-            print(f"ERROR! Skybgr not calculated for {file}")
+        if flag != 0:
+            # TODO give reason for failure
+            if flag == 1:
+                print(f"ERROR! Skybgr not calculated for {file} as skyregion is less than 100 pixels.")
+            else:
+                print(f"ERROR! Skybgr not calculated for {file} as Gaussian could not be fitted to image.")
             paramwriter.writerow([f"{file}", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0"])
             print(" ")
             continue

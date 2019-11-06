@@ -31,7 +31,7 @@ import numpy as np
 from typing import List
 
 
-def moments(data: np.ndarray, angle_guess=45.0) -> List[float]:
+def moments(data: np.ndarray, angle_guess=90.0) -> List[float]:
     """
     Returns (height, amplitude, x, y, width_x, width_y, rotation angle)
     the gaussian parameters of a 2D distribution by calculating its
@@ -44,7 +44,7 @@ def moments(data: np.ndarray, angle_guess=45.0) -> List[float]:
         data from which the Gaussian parameters will be calculated
 
     angle_guess : float, optional
-        Guess of the angle of the Gaussian, defual 45 degrees
+        Guess of the angle of the Gaussian, defual 5 degrees
 
     Returns
     -------
