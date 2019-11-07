@@ -2,7 +2,9 @@ from typing import List, Tuple
 
 import numba as nb
 import numpy as np
+import matplotlib.pyplot as plt
 from astropy.io import fits
+from astropy.modeling import models, fitting
 from scipy import ndimage
 from scipy import optimize
 from skimage import transform
@@ -234,25 +236,30 @@ def skybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, 
             yfit = gauss2dfit(smallimg, smallimg.shape[0])
         else:
             yfit = gauss2dfit(img, imgsize)
+        fact = 2 * np.sqrt(2 * np.log(2))
+        fwhm_x = fact * np.abs(yfit[4])
+        fwhm_y = fact * np.abs(yfit[5])
+        r_in = 2. * max(fwhm_x, fwhm_y)
     except RuntimeError:
-        sky = -99
-        sky_err = -99
-        flag = 2
-        return sky, sky_err, flag
-
-    fact = 2 * np.sqrt(2 * np.log(2))
-    fwhm_x = fact * np.abs(yfit[4])
-    fwhm_y = fact * np.abs(yfit[5])
-    r_in = 2. * max(fwhm_x, fwhm_y)
-
-    fig, ax = plt.subplots()
-    circle = plt.Circle(cenpix, r_in, fill=False)
-    ax.imshow(img)
-    ax.add_artist(circle)
-    plt.show()
+        print("Running alt gaussgitter")
+        yfit = altgauss2dfit(img, imgsize)
+        fwhm_x = yfit.x_fwhm
+        fwhm_y = yfit.y_fwhm
+        r_in = 2. * max(fwhm_x, fwhm_y)
 
     skyind = np.nonzero(distarrvar > r_in)
     skyregion = img[skyind]
+
+    if skyregion.shape[0] < 300:
+        print("Running alt gaussgitter")
+        yfit = altgauss2dfit(img, imgsize)
+        fwhm_x = yfit.x_fwhm
+        fwhm_y = yfit.y_fwhm
+        r_in = 2. * max(fwhm_x, fwhm_y)
+        skyind = np.nonzero(distarrvar > r_in)
+        skyregion = img[skyind]
+        if skyregion.shape[0] < 100:
+            return -99, -99, 1
 
     if skyregion.shape[0] > 100:
         # Flag the measurement if sky region smaller than 20000 pixels
@@ -334,9 +341,70 @@ def gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
     imgravel = img.ravel()
 
     xdata = np.vstack((X.ravel(), Y.ravel()))
-    popt, pconv = optimize.curve_fit(twodgaussian, (X, Y), imgravel, p0=initial_guess, maxfev=10000)
+    popt, pconv = optimize.curve_fit(twodgaussian, (X, Y), imgravel, p0=initial_guess)
 
     return np.abs(popt)
+
+
+def altgauss2dfit(img: np.ndarray, imgsize: float) -> models:
+    '''Alternative slower but more robust Gaussian fitter.
+
+    img : np.ndarray
+        Image array to be fitted to.
+    imgsize : int
+        Size of image in x and y directions.
+
+    Returns
+    -------
+
+    g : astropy.modeling.functional_models.Gaussian2D class
+        Model parameters of fitted Gaussian.
+
+    '''
+
+    imgold = np.copy(img)
+
+    fit_w = fitting.LevMarLSQFitter()
+
+    total = np.abs(imgold).sum()
+    Y, X = np.indices(imgold.shape)  # python convention: reverse x,y np.indices
+    mean = np.mean(imgold)
+    xmid = int(imgsize / 2)
+    ymid = int(imgsize / 2)
+
+    # Mask out bright pixels not near object centre
+    while True:
+        x, y = np.unravel_index(np.argmax(imgold), shape=imgold.shape)
+        if abs(x - xmid) > 20 or abs(y - ymid) > 20:
+            imgold[x, y] = mean
+        else:
+            break
+
+    # subtracting the mean sometimes helps
+    mean = np.mean(imgold)
+    imgold -= mean
+
+    # make intial guess
+    total = np.abs(imgold).sum()
+    y0 = int(img.shape[0] / 2)
+    x0 = int(img.shape[1] / 2)
+
+    col = imgold[int(y0), :]
+    sigmax = np.sqrt(np.abs((np.arange(col.size)-y0)**2*col).sum() / np.abs(col).sum())
+
+    row = imgold[:, int(x0)]
+    sigmay = np.sqrt(np.abs((np.arange(row.size)-x0)**2*row).sum() / np.abs(row).sum())
+
+    height = np.median(imgold.ravel())
+    amp = imgold.max() - height
+    angle = 3.14 / 2.
+
+    # fit model
+    w = models.Gaussian2D(amp, x0, y0, sigmax, sigmay, angle)
+    yi, xi = np.indices(imgold.shape)
+    g = fit_w(w, xi, yi, imgold)
+
+    return g
 
 
 def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
@@ -880,7 +948,7 @@ if __name__ == '__main__':
             filename = filename.replace("sdss", "sdssl", 1)
             infile = Path(args.folder) / Path(filename)
             if infile.exists():
-                datatmp = fits.getdata(Path(args.folder) / Path(filename))
+                datatmp = fits.getdata(Path(args.folder) / Path(filename))  # FIXME: crashes if given a single file
                 sky, sky_err, flag = skybgr(datatmp, datatmp.shape[0], data)
             else:
                 print(f"{infile} does not exist!")
@@ -936,5 +1004,6 @@ if __name__ == '__main__':
         f = time.time()
         timetaken = f - s
         paramwriter.writerow([f"{file}", f"{apix}", f"{r_max}", f"{sky}", f"{sky_err}", f"{A[0]}", f"{A[1]}", f"{As[0]}", f"{As90[0]}", f"{timetaken}"])
+        #TODO: add defualt values for above parameters or dont write them out if not calculated
 
     csvfile.close()
