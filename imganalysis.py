@@ -1111,7 +1111,7 @@ if __name__ == '__main__':
 
         # clean image of external sources
         data = cleanimg(data, mask)
-        if args.noimageclean:
+        if args.savecleanimg:
             filename = file.name
             filename = "clean_" + filename
             outfile = outfolder / filename
