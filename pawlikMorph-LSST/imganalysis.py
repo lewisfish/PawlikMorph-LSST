@@ -3,16 +3,18 @@ if __name__ == '__main__':
     import sys
     import time
     import warnings
+    import re
     from argparse import ArgumentParser
     from pathlib import Path
 
     from astropy.io import fits
     from astropy.utils.exceptions import AstropyWarning
     import numpy as np
+    import matplotlib.pyplot as plt
 
     from apertures import makeaperpixmaps, distarr, aperpixmap
     from asymmetry import calcA, minapix
-    from imageutils import skybgr, cleanimg
+    from imageutils import skybgr, cleanimg, cutoutImg
     from pixmap import pixelmap
 
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
@@ -35,8 +37,10 @@ if __name__ == '__main__':
                         help="Save cleaned image.")
     parser.add_argument("-li", "--largeimage", action="store_true",
                         help="Use larg cutout for sky background estimation.")
-    # parser.add_argument("-Ao", action="store_true",
-    #                     help="Calculate outer asymmetry parameter")
+    parser.add_argument("-src", "--imgsource", type=str, choices=["sdss", "hsc"],
+                        help="Source of the image.")
+    parser.add_argument("-pp", "--preprocess", action="store_true",
+                        help="Preprocess images so they are correct size.")
 
     args = parser.parse_args()
 
@@ -53,7 +57,7 @@ if __name__ == '__main__':
         files.append(Path(args.file))
     elif args.folder:
         # TODO change to a generator
-        files = list(Path(args.folder).glob("sdsscutout*.fits"))
+        files = list(Path(args.folder).glob(f"{args.imgsource}cutout*.fits"))
     if files[0].exists():
         data = fits.getdata(files[0])
         imgsize = data.shape[0]
@@ -93,6 +97,9 @@ if __name__ == '__main__':
     paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
                           "As", "As90", "time"])
 
+    regexRA = re.compile(r"\d{2}\.\d{1,4}")
+    regexDEC = re.compile(r"\-\d{1,2}\.\d{1,4}")
+    files.sort()
     for file in files:
         s = time.time()
 
@@ -111,9 +118,17 @@ if __name__ == '__main__':
         data = data.byteswap().newbyteorder()
 
         if not data.shape[0] == data.shape[1]:
+            matches = regexRA.search(file.name)
+            ra = float(matches.group())
+            matches = regexDEC.search(file.name)
+            dec = float(matches.group())
+
+            data = cutoutImg(file, ra, dec, 141, args.imgsource)
             print("ERROR: wrong image size. Please preprocess data!")
-            print(data.shape)
-            sys.exit()
+            imgsize = 141
+            # plt.imshow(data)
+            # plt.show()
+            # sys.exit()
 
         # get sky background value and error
         if args.largeimage:

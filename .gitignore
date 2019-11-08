@@ -6,3 +6,4 @@ __pycache__*
 exp/*
 *.mp4
 bad/*
+hsc_data/*

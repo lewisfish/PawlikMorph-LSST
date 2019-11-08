@@ -3,6 +3,7 @@ from typing import List, Tuple
 import numpy as np
 from astropy import wcs
 from astropy.coordinates import SkyCoord
+from astropy.io import fits
 from astropy.nddata import Cutout2D
 from astropy.modeling import models, fitting
 from astropy import units
@@ -434,8 +435,10 @@ def cutoutImg(file: str, ra: float, dec: float, stampsize: int, imgsource=None) 
         var = 0
 
     w = wcs.WCS(hdullist[var].header)
-    hdullist[var].scale("int32", "old")  # scale images properly
+
+    # hdullist[var].scale("int32", "old")  # scale images properly
     data = hdullist[var].data
+    data = data.byteswap().newbyteorder()
 
     # get central pixel position in pixels
     pos = SkyCoord(ra*units.deg, dec*units.deg)
