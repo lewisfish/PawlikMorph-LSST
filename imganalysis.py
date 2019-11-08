@@ -3,8 +3,12 @@ from typing import List, Tuple
 import numba as nb
 import numpy as np
 import matplotlib.pyplot as plt
+from astropy import wcs
+from astropy.coordinates import SkyCoord
 from astropy.io import fits
+from astropy.nddata import Cutout2D
 from astropy.modeling import models, fitting
+from astropy import units
 from scipy import ndimage
 from scipy import optimize
 from skimage import transform
@@ -28,8 +32,6 @@ def makeaperpixmaps(npix: int, folderpath=None) -> None:
 
     None
     '''
-
-    print("Creating aperture pixel maps.")
 
     cenpix = npix / 2. + 1.
     r_aper = np.arange(cenpix) + 1.
@@ -833,6 +835,143 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
     return [A, Abgr]
 
 
+def calcRotation(cd: np.ndarray) -> float:
+    # Copyright (c) 2011-2019, Ginga Maintainers
+
+    # All rights reserved.
+
+    # Redistribution and use in source and binary forms, with or without
+    # modification, are permitted provided that the following conditions are
+    # met:
+
+    # * Redistributions of source code must retain the above copyright
+    #   notice, this list of conditions and the following disclaimer.
+
+    # * Redistributions in binary form must reproduce the above copyright
+    #   notice, this list of conditions and the following disclaimer in the
+    #   documentation and/or other materials provided with the
+    #   distribution.
+
+    # * Neither the name of Ginga Maintainers nor the names of its
+    #   contributors may be used to endorse or promote products derived from
+    #   this software without specific prior written permission.
+
+    # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+    # IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+    # TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+    # PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    # HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+    # TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+    # PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+    # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+    # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+    '''Function that calculates rotation from a cd matrix. Adapted from
+       Ginga source code: https://ejeschke.github.io/ginga/.
+
+    Parameters
+    ----------
+
+    cd : np.ndarray
+        Matrix of cd values
+
+    Returns
+    -------
+
+    xrot : float
+        Angle of the image rotation.
+    '''
+
+    cd11 = cd[0, 0]
+    cd12 = cd[0, 1]
+    cd21 = cd[1, 0]
+    cd22 = cd[1, 1]
+
+    det = cd11*cd22 - cd12*cd21
+    if det < 0:
+        sgn = -1
+    else:
+        sgn = 1
+
+    if cd21 == 0 or cd12 == 0:
+        xrot = 0
+        yrot = 0
+        cdelt1 = cd11
+        cdelt2 = cd22
+    else:
+        xrot = np.arctan2(sgn * cd12, sgn*cd11)
+        yrot = np.arctan2(-cd21, cd22)
+
+        cdelt1 = sgn * np.sqrt(cd11**2 + cd12**2)
+        cdelt2 = np.sqrt(cd11**2 + cd21**2)
+
+    xrot = np.degrees(xrot)+180.
+    return xrot
+
+
+def cutoutImg(file: str, ra: float, dec: float, stampsize: int, imgsource=None) -> np.ndarray:
+    '''Function to cutout postage stamp of a given pixel size from larger image
+
+    Parameters
+    ----------
+
+    file : str
+        Name of file to be cutout.
+    ra : float
+        RA of object in large image.
+    dec : float
+        DEC of object in large image.
+    stampsize:
+        Size of image to cutout and return.
+    imgsource: str, optional
+        Source of image, i.e SDSS, LSST, HSC
+
+    Returns
+    -------
+
+    cutout.data : np.ndarray
+        Postage stamp image of given size.
+
+    '''
+
+    hdullist = fits.open(file)
+
+    if imgsource:
+        if imgsource.lower() == "sdss":
+            var = 0
+        elif imgsource.lower() == "hsc":
+            var = 1
+        else:
+            print("ERROR! Source not supported!")
+            sys.exit()
+    else:
+        var = 0
+
+    w = wcs.WCS(hdullist[var].header)
+    hdullist[var].scale("int32", "old")  # scale images properly
+    data = hdullist[var].data
+
+    # get central pixel position in pixels
+    pos = SkyCoord(ra*units.deg, dec*units.deg)
+    pos = wcs.utils.skycoord_to_pixel(pos, wcs=w)
+    x = pos[0]
+    y = pos[1]
+
+    # Calculate rotation of image from CD matrix
+    cd = w.wcs.cd
+    angle = -calcRotation(cd)
+
+    # rotate image and cutout postage stamp
+    img_rot = transform.rotate(data, angle, center=(x, y), preserve_range=True,
+                               order=0)
+    cutout = Cutout2D(img_rot, pos, (stampsize, stampsize), wcs=w,
+                      mode="strict", copy=True)
+    hdullist.close()
+
+    return cutout.data
+
+
 if __name__ == '__main__':
     import csv
     import sys
@@ -860,7 +999,7 @@ if __name__ == '__main__':
                         help="Calculate aperature pixel maps")
     parser.add_argument("-spm", "--savepixmap", action="store_true",
                         help="Save calculated binary pixelmaps.")
-    parser.add_argument("-nic", "--noimageclean", action="store_true",
+    parser.add_argument("-sci", "--savecleanimg", action="store_true",
                         help="Save cleaned image.")
     parser.add_argument("-li", "--largeimage", action="store_true",
                         help="Use larg cutout for sky background estimation.")
@@ -911,11 +1050,12 @@ if __name__ == '__main__':
 
     if args.folder:
         outfolder = Path(args.folder).parents[0] / "output/"
-        if not outfolder.exists():
-            outfolder.mkdir()
-        outfile = outfolder / "parameters.csv"
+
     else:
-        outfile = "parameters.csv"
+        outfolder = Path(args.file).parents[0] / "output/"
+    if not outfolder.exists():
+        outfolder.mkdir()
+    outfile = outfolder / "parameters.csv"
     csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
     paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
