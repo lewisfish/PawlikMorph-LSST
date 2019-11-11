@@ -1,11 +1,11 @@
 # PawlikMorph-LSST
 Translation and optimisation of SEDMORPH's [PawlikMorph](https://github.com/SEDMORPH/PawlikMorph) IDL code for analysing images of galaxies from SDSS data release 7
 
-Currently only replicates the ability to generate aperture pixel maps and object binary mask.
+Replicates the ability to prepare images, generate object binary masks and calculate the A, As, and As90 asymmetry parameters.
 
 ## Usage
 
-./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-aperpixmap] [-spm] [-nic] [-li]
+./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-aperpixmap] [-spm] [-sci] [-li] [-src]
 
  - -h, shows the help screen
  - -f FILE, Path to a single image for analysis
@@ -13,13 +13,13 @@ Currently only replicates the ability to generate aperture pixel maps and object
  - -A, runs the asymmetry calculation
  - -As, Runs the shape asymmetry calculation
  - -Aall, Runs all the implmented asymmetry calculations
- - -aperpixmap, Generate aperture pixel maps
  - -spm, Save calculated binary pixelmaps
- - -nic, Save cleaned image
+ - -sci, Save cleaned image
  - -li, Use larger image cutouts to estimate sky background
+ - -src, Source of the image
  
  Example
-  - ./imganalysis.py -f sample/sdsscutout_211.51-0.31_rband.fits -aperpixmap
+  - ./imganalysis.py -f sample/sdsscutout_211.51-0.31_rband.fits -Aall -spm -sci -src sdss
 
 ## Installation
 
@@ -35,13 +35,12 @@ First clone this repo. Then either use pip or conda to install dependencies:
  - Numba 0.38.1+
  - Astropy 3.0.3+
  - Scikit-image 0.14.0+
- - [Gaussfitter](https://github.com/keflavich/gaussfitter) modified version included as gaussfitter.py
  
  ## TODO
   - [x] Calculate Asymmetry
   - [x] Calculate shape asymmetry
   - [ ] Calculate outer asymmetery
-  - [ ] Analysis LSST images and other similar images
+  - [ ] Analyse LSST images and other similar images
   - [ ] Run on LSST's data centre in Edinburgh
   - [ ] Make it all fast
   - [ ] Notebook integration
