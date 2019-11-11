@@ -3,7 +3,6 @@ if __name__ == '__main__':
     import sys
     import time
     import warnings
-    import re
     from argparse import ArgumentParser
     from pathlib import Path
 
@@ -12,10 +11,12 @@ if __name__ == '__main__':
     import numpy as np
     import matplotlib.pyplot as plt
 
-    from apertures import makeaperpixmaps, distarr, aperpixmap
-    from asymmetry import calcA, minapix
-    from imageutils import skybgr, cleanimg, cutoutImg
-    from pixmap import pixelmap
+    from pawlikMorphLSST import asymmetry, apertures, pixmap, imageutils
+
+    # from apertures import makeaperpixmaps, distarr, aperpixmap
+    # from asymmetry import calcA, minapix
+    # from imageutils import skybgr, cleanimg, cutoutImg
+    # from pixmap import pixelmap
 
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
@@ -29,14 +30,12 @@ if __name__ == '__main__':
                         help="Calculate shape asymmetry parameter")
     parser.add_argument("-Aall", action="store_true",
                         help="Calculate all asymmetries parameters")
-    parser.add_argument("-aperpixmap", action="store_true",
-                        help="Calculate aperature pixel maps")
     parser.add_argument("-spm", "--savepixmap", action="store_true",
                         help="Save calculated binary pixelmaps.")
     parser.add_argument("-sci", "--savecleanimg", action="store_true",
                         help="Save cleaned image.")
     parser.add_argument("-li", "--largeimage", action="store_true",
-                        help="Use larg cutout for sky background estimation.")
+                        help="Use large cutout for sky background estimation.")
     parser.add_argument("-src", "--imgsource", type=str, choices=["sdss", "hsc"],
                         help="Source of the image.")
 
@@ -118,12 +117,12 @@ if __name__ == '__main__':
             infile = Path(args.folder) / Path(filename)
             if infile.exists():
                 datatmp = fits.getdata(Path(args.folder) / Path(filename))  # FIXME: crashes if given a single file
-                sky, sky_err, flag = skybgr(datatmp, datatmp.shape[0], data)
+                sky, sky_err, flag = imageutils.skybgr(datatmp, datatmp.shape[0], data)
             else:
                 print(f"{infile} does not exist!")
-                sky, sky_err, flag = skybgr(data, imgsize)
+                sky, sky_err, flag = imageutils.skybgr(data, imgsize)
         else:
-            sky, sky_err, flag = skybgr(data, imgsize)
+            sky, sky_err, flag = imageutils.skybgr(data, imgsize)
 
         if flag != 0:
             if flag == 1:
@@ -134,11 +133,11 @@ if __name__ == '__main__':
             print(" ")
             continue
 
-        mask = pixelmap(data, sky + sky_err, 3)
+        mask = pixmap.pixelmap(data, sky + sky_err, 3)
         data -= sky
 
         # clean image of external sources
-        data = cleanimg(data, mask)
+        data = imageutils.cleanimg(data, mask)
         if args.savecleanimg:
             filename = file.name
             filename = "clean_" + filename
@@ -154,20 +153,20 @@ if __name__ == '__main__':
         objectpix = np.nonzero(mask == 1)
         cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
 
-        distarray = distarr(imgsize, imgsize, cenpix)
+        distarray = apertures.distarr(imgsize, imgsize, cenpix)
         objectdist = distarray[objectpix]
         r_max = np.max(objectdist)
-        aperturepixmap = aperpixmap(imgsize, r_max, 9, 0.1)
+        aperturepixmap = apertures.aperpixmap(imgsize, r_max, 9, 0.1)
 
-        apix = minapix(data, mask, aperturepixmap)
+        apix = asymmetry.minapix(data, mask, aperturepixmap)
         angle = 180.
 
         if args.A or args.Aall:
-            A = calcA(data, mask, aperturepixmap, apix, angle, noisecorrect=True)
+            A = asymmetry.calcA(data, mask, aperturepixmap, apix, angle, noisecorrect=True)
 
         if args.As or args.Aall:
-            As = calcA(mask, mask, aperturepixmap, apix, angle)
-            As90 = calcA(mask, mask, aperturepixmap, apix, 90.)
+            As = asymmetry.calcA(mask, mask, aperturepixmap, apix, angle)
+            As90 = asymmetry.calcA(mask, mask, aperturepixmap, apix, 90.)
 
         f = time.time()
         timetaken = f - s
