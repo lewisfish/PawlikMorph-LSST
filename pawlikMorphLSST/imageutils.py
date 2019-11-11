@@ -11,8 +11,8 @@ from scipy import ndimage
 from scipy import optimize
 from skimage import transform
 
-from apertures import distarr
-from gaussfitter import twodgaussian, moments
+from .apertures import distarr
+from .gaussfitter import twodgaussian, moments
 
 
 def skybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, int]:

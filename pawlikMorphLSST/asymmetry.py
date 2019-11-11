@@ -1,10 +1,11 @@
 from typing import List
 
 import numpy as np
+from pkg_resources import parse_version
 from scipy import ndimage
 from skimage import transform
 
-from apertures import apercentre
+from .apertures import apercentre
 
 
 def minapix(img: np.ndarray, mask: np.ndarray, apermask: np.ndarray) -> List[int]:
@@ -71,7 +72,11 @@ def minapix(img: np.ndarray, mask: np.ndarray, apermask: np.ndarray) -> List[int
         if ipix[ii] > 0:
             regionpix[jj] = sortedind[ii]
 
-            regionpix_2d = np.unravel_index(sortedind[ii], shape=(npix, npix))
+            if parse_version(np.__version__) >= parse_version("1.16.0"):
+                regionpix_2d = np.unravel_index(sortedind[ii], shape=(npix, npix))
+            else:
+                regionpix_2d = np.unravel_index(sortedind[ii], dims=(npix, npix))
+
             regionpix_x[jj] = regionpix_2d[1]
             regionpix_y[jj] = regionpix_2d[0]
 
@@ -107,7 +112,10 @@ def minapix(img: np.ndarray, mask: np.ndarray, apermask: np.ndarray) -> List[int
     sub = np.argmin(a)
 
     centroid_ind = int(regionpix[sub])
-    centroid = np.unravel_index(centroid_ind, shape=(npix, npix))
+    if parse_version(np.__version__) >= parse_version("1.16.0"):
+        centroid = np.unravel_index(centroid_ind, shape=(npix, npix))
+    else:
+        centroid = np.unravel_index(centroid_ind, dims=(npix, npix))
 
     return centroid
 
