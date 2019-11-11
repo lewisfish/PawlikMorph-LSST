@@ -1,7 +1,7 @@
 ''' A package to analyse images of galaxies in to determine various
     morphological properties.
-
 '''
+
 import numpy as _np
 
 

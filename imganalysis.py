@@ -13,11 +13,6 @@ if __name__ == '__main__':
 
     from pawlikMorphLSST import asymmetry, apertures, pixmap, imageutils
 
-    # from apertures import makeaperpixmaps, distarr, aperpixmap
-    # from asymmetry import calcA, minapix
-    # from imageutils import skybgr, cleanimg, cutoutImg
-    # from pixmap import pixelmap
-
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
     parser.add_argument("-f", "--file", type=str,
@@ -97,8 +92,7 @@ if __name__ == '__main__':
         data = fits.getdata(file)
         imgsize = data.shape[0]
         # The following is required as fits files are big endian and skimage
-        # assumes little endian.
-        # https://stackoverflow.com/a/30284033/6106938
+        # assumes little endian. https://stackoverflow.com/a/30284033/6106938
         # https://en.wikipedia.org/wiki/Endianness
         data = data.byteswap().newbyteorder()
 
