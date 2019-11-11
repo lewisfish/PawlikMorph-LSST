@@ -39,8 +39,6 @@ if __name__ == '__main__':
                         help="Use larg cutout for sky background estimation.")
     parser.add_argument("-src", "--imgsource", type=str, choices=["sdss", "hsc"],
                         help="Source of the image.")
-    parser.add_argument("-pp", "--preprocess", action="store_true",
-                        help="Preprocess images so they are correct size.")
 
     args = parser.parse_args()
 
@@ -65,42 +63,31 @@ if __name__ == '__main__':
         print(f"Fits image:{files[0].name} does not exist!")
         sys.exit()
 
-    # Generate binary aperture masks for computation of light profiles
-    # Checks if they already exist, if so skips computation
-    # TODO: probably could do this better
-    if args.aperpixmap:
-        cenpixtmp = (imgsize / 2.) + 1
-        tmp = np.arange(cenpixtmp) + 1.
-        aperpath = Path(args.folder).parents[0] / "aperpixmaps/"
-        if len(list(aperpath.glob("aperture*.fits"))) == int(cenpixtmp) + 1:
-            tmpdata = fits.getdata(aperpath / "aperture50.fits")
-            if tmpdata.shape[0] != imgsize:
-                makeaperpixmaps(imgsize)
-        else:
-            try:
-                aperpath.mkdir()
-            except FileExistsError:
-                # folder already exists so pass
-                pass
-            makeaperpixmaps(imgsize, aperpath)
-
     if args.folder:
         outfolder = Path(args.folder).parents[0] / "output/"
-
     else:
         outfolder = Path(args.file).parents[0] / "output/"
+
     if not outfolder.exists():
         outfolder.mkdir()
+
     outfile = outfolder / "parameters.csv"
     csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
     paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
                           "As", "As90", "time"])
 
-    regexRA = re.compile(r"\d{2}\.\d{1,4}")
-    regexDEC = re.compile(r"\-\d{1,2}\.\d{1,4}")
     files.sort()
     for file in files:
+        # set default values for calculated parameters
+        apix = (-99, -99)
+        r_max = -99
+        sky = -99
+        sky_err = -99
+        A = [-99, -99]
+        As = [-99, -99]
+        As90 = [-99, -99]
+
         s = time.time()
 
         if not file.exists():
@@ -114,26 +101,20 @@ if __name__ == '__main__':
         # assumes little endian.
         # https://stackoverflow.com/a/30284033/6106938
         # https://en.wikipedia.org/wiki/Endianness
-        # https://stackoverflow.com/a/30284033/6106938
         data = data.byteswap().newbyteorder()
 
         if not data.shape[0] == data.shape[1]:
-            matches = regexRA.search(file.name)
-            ra = float(matches.group())
-            matches = regexDEC.search(file.name)
-            dec = float(matches.group())
-
-            data = cutoutImg(file, ra, dec, 141, args.imgsource)
             print("ERROR: wrong image size. Please preprocess data!")
-            imgsize = 141
-            # plt.imshow(data)
-            # plt.show()
-            # sys.exit()
+            sys.exit()
 
         # get sky background value and error
         if args.largeimage:
             filename = file.name
-            filename = filename.replace("sdss", "sdssl", 1)
+            if args.imgsource == "sdss":
+                filename = filename.replace("sdss", "sdssl", 1)
+            elif args.imgsource == "hsc":
+                filename = filename.replace("hsc", "hscl", 1)
+
             infile = Path(args.folder) / Path(filename)
             if infile.exists():
                 datatmp = fits.getdata(Path(args.folder) / Path(filename))  # FIXME: crashes if given a single file
@@ -145,7 +126,6 @@ if __name__ == '__main__':
             sky, sky_err, flag = skybgr(data, imgsize)
 
         if flag != 0:
-            # TODO give reason for failure
             if flag == 1:
                 print(f"ERROR! Skybgr not calculated for {file} as skyregion is less than 100 pixels.")
             else:
@@ -192,6 +172,6 @@ if __name__ == '__main__':
         f = time.time()
         timetaken = f - s
         paramwriter.writerow([f"{file}", f"{apix}", f"{r_max}", f"{sky}", f"{sky_err}", f"{A[0]}", f"{A[1]}", f"{As[0]}", f"{As90[0]}", f"{timetaken}"])
-        #TODO: add defualt values for above parameters or dont write them out if not calculated
 
+    print(" ")
     csvfile.close()

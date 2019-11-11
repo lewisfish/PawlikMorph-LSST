@@ -54,7 +54,6 @@ def skybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, 
         fwhm_y = fact * np.abs(yfit[5])
         r_in = 2. * max(fwhm_x, fwhm_y)
     except RuntimeError:
-        print("Running alt gaussgitter")
         yfit = altgauss2dfit(img, imgsize)
         fwhm_x = yfit.x_fwhm
         fwhm_y = yfit.y_fwhm
@@ -64,7 +63,7 @@ def skybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, 
     skyregion = img[skyind]
 
     if skyregion.shape[0] < 300:
-        print("Running alt gaussgitter")
+        # if skyregion too small try with more robust Gaussian fitter
         yfit = altgauss2dfit(img, imgsize)
         fwhm_x = yfit.x_fwhm
         fwhm_y = yfit.y_fwhm
@@ -220,7 +219,7 @@ def altgauss2dfit(img: np.ndarray, imgsize: float) -> models:
     return g
 
 
-def cleanimg(img: np.ndarray, pixmap: np.ndarray) -> np.ndarray:
+def cleanimg(img: np.ndarray, pixmap: np.ndarray, filter=False) -> np.ndarray:
     '''Function that cleans the image of non overlapping sources, i.e outside
        the objects binary pixelmap
 
@@ -232,6 +231,9 @@ def cleanimg(img: np.ndarray, pixmap: np.ndarray) -> np.ndarray:
         Input image to be cleaned.
     pixmap : np.ndarray
         Binary pixelmap of object.
+    filter : bool, optional
+        Flag for whether the output image should be filtered before return.
+        Helps wth "salt and pepper noise"
 
     Returns
     -------
@@ -251,72 +253,73 @@ def cleanimg(img: np.ndarray, pixmap: np.ndarray) -> np.ndarray:
 
     skyind = np.nonzero(mask.ravel() != 1)[0]
 
-    if skyind.size > 10:
+    # find a threshold for defining sky pixels
+    meansky = np.mean(imgravel[skyind])
+    mediansky = np.median(imgravel[skyind])
 
-        # find a threshold for defining sky pixels
-        meansky = np.mean(imgravel[skyind])
-        mediansky = np.median(imgravel[skyind])
+    if meansky <= mediansky:
+        thres = meansky
+    else:
+        # begin sigma clip
+        sigmasky = np.std(imgravel[skyind])
 
-        if meansky <= mediansky:
-            thres = meansky
-        else:
+        mode_old = 3. * mediansky - 2.*meansky
+        mode_new = 0.0
+        w = 0
+        clipsteps = imgravel.size
 
+        while w < clipsteps:
+
+            skyind = np.nonzero(np.abs(imgravel[skyind] - meansky) < 3.*sigmasky)
+            meansky = np.mean(imgravel[skyind])
+            mediansky = np.median(imgravel[skyind])
             sigmasky = np.std(imgravel[skyind])
 
-            mode_old = 3. * mediansky - 2.*meansky
-            mode_new = 0.0
-            w = 0
-            clipsteps = imgravel.size
+            mode_new = 3.*mediansky - 2.*meansky
+            mode_diff = abs(mode_old - mode_new)
 
-            while w < clipsteps:
-
-                skyind = np.nonzero(np.abs(imgravel[skyind] - meansky) < 3.*sigmasky)
-                meansky = np.mean(imgravel[skyind])
-                mediansky = np.median(imgravel[skyind])
-                sigmasky = np.std(imgravel[skyind])
-
-                mode_new = 3.*mediansky - 2.*meansky
-                mode_diff = abs(mode_old - mode_new)
-
-                if mode_diff < 0.01:
-                    modesky = mode_new
-                    w = clipsteps
-                else:
-                    w += 1
-
-                mode_old = mode_new
-
-            thres = modesky
-
-        # Mask out sources with random sky pixels
-        # elemnt wise boolean AND
-        skypix = np.nonzero((pixmap.ravel() != 1) & (imgravel > thres))
-
-        skypixels = imgravel[skypix]
-        allpixels = skypixels
-
-        if skypixels.size >= imgravel.size:
-            print("ERROR! No sources detected! Check image and pixel map.")
-        else:
-            pixfrac = imgravel.size / skypixels.size
-            if pixfrac == float(round(pixfrac)):
-                for p in range(1, int(pixfrac)):
-                    allpixels = np.append(allpixels, skypixels)
+            if mode_diff < 0.01:
+                modesky = mode_new
+                w = clipsteps
             else:
-                for p in range(1, int(pixfrac)):
-                    allpixels = np.append(allpixels, skypixels)
-                diff = imgravel.shape[0] - allpixels.shape[0]
-                allpixels = np.append(allpixels, skypixels[0:diff])
+                w += 1
 
-        # shuffle sky pixels randomly
-        np.random.shuffle(allpixels)
+            mode_old = mode_new
 
-        imgclean = np.where((pixmap.ravel() != 1) & (imgravel >= thres), allpixels, imgravel)
+        thres = modesky
+
+    # Mask out sources with random sky pixels
+    # element wise boolean AND
+    skypix = np.nonzero((pixmap.ravel() != 1) & (imgravel > thres))
+
+    skypixels = imgravel[skypix]
+    allpixels = skypixels
+
+    if skypixels.size >= imgravel.size:
+        print("ERROR! No sources detected! Check image and pixel map.")
+    else:
+        pixfrac = imgravel.size / skypixels.size
+        if pixfrac == float(round(pixfrac)):
+            for p in range(1, int(pixfrac)):
+                allpixels = np.append(allpixels, skypixels)
+        else:
+            for p in range(1, int(pixfrac)):
+                allpixels = np.append(allpixels, skypixels)
+            diff = imgravel.shape[0] - allpixels.shape[0]
+            allpixels = np.append(allpixels, skypixels[0:diff])
+
+    # shuffle sky pixels randomly
+    np.random.shuffle(allpixels)
+
+    imgclean = np.where((pixmap.ravel() != 1) & (imgravel >= thres), allpixels, imgravel)
     imgclean = imgclean.reshape((imgsize, imgsize))
 
     # convert imgclean from object dtype to float dtype
     imgclean[imgclean == None] = 0.
     imgclean = imgclean.astype(np.float)
+
+    if filter:
+        imgclean = ndimage.uniform_filter(imgclean, size=(3, 3), mode="reflect")
 
     return imgclean
 
