@@ -46,8 +46,29 @@ def prepareimage(img: _np.ndarray):
     return img, mask
 
 
-def calculateMorphology(img, mask):
+def calculateMorphology(img: _np.ndarray, mask: _np.ndarray):
+    '''Helper function to calculate all Asymmetry parameters.
 
+    Parameters
+    ----------
+
+    img : np.ndarray
+        Cleaned, bgr subtracted image.
+    mask : np.ndarray
+        Binary object mask
+
+    Returns
+    -------
+
+    A : List[float]
+        Asymmetry parameter and its background value
+    As : List[float]
+        Shape asymmetry parameter
+    As90 : List[float]
+        Shape 90 degrees Asymmetry parameter
+
+
+    '''
     from .apertures import distarr, aperpixmap
     from .asymmetry import calcA, minapix
 

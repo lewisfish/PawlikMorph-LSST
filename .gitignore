@@ -7,3 +7,4 @@ exp/*
 *.mp4
 bad/*
 hsc_data/*
+*.ipynb*
