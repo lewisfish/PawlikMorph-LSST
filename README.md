@@ -21,6 +21,10 @@ Replicates the ability to prepare images, generate object binary masks and calcu
  Example
   - ./imganalysis.py -f sample/sdsscutout_211.51-0.31_rband.fits -Aall -spm -sci -src sdss
 
+### Alternative
+
+See the provided [notebook](https://github.com/lewisfish/PawlikMorph-LSST/blob/master/tutorial.ipynb)
+
 ## Installation
 
 First clone this repo. Then either use pip or conda to install dependencies:
@@ -39,8 +43,8 @@ First clone this repo. Then either use pip or conda to install dependencies:
  ## TODO
   - [x] Calculate Asymmetry
   - [x] Calculate shape asymmetry
-  - [ ] Calculate outer asymmetery
-  - [ ] Analyse LSST images and other similar images
+  - [x] Analyse HSC data
+  - [ ] Analyse LSST images
   - [ ] Run on LSST's data centre in Edinburgh
   - [ ] Make it all fast
   - [ ] Notebook integration
