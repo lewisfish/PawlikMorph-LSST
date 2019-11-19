@@ -8,10 +8,12 @@ if __name__ == '__main__':
 
     from astropy.io import fits
     from astropy.utils.exceptions import AstropyWarning
-    import numpy as np
-    import matplotlib.pyplot as plt
+    from astropy import wcs
 
-    from pawlikMorphLSST import asymmetry, apertures, pixmap, imageutils
+    import numpy as np
+    # import matplotlib.pyplot as plt
+
+    from pawlikMorphLSST import asymmetry, apertures, pixmap, imageutils, objectMasker
 
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
@@ -31,8 +33,10 @@ if __name__ == '__main__':
                         help="Save cleaned image.")
     parser.add_argument("-li", "--largeimage", action="store_true",
                         help="Use large cutout for sky background estimation.")
-    parser.add_argument("-src", "--imgsource", type=str, choices=["sdss", "hsc"],
+    parser.add_argument("-src", "--imgsource", type=str, default="sdss", choices=["sdss", "hsc"],
                         help="Source of the image.")
+    parser.add_argument("-cc", "--catalogue", type=str, help="Check if any object in the\
+                        provided catalogue occulds the analysed object.")
 
     args = parser.parse_args()
 
@@ -50,6 +54,7 @@ if __name__ == '__main__':
     elif args.folder:
         # TODO change to a generator
         files = list(Path(args.folder).glob(f"{args.imgsource}cutout*.fits"))
+
     if files[0].exists():
         data = fits.getdata(files[0])
         imgsize = data.shape[0]
@@ -69,7 +74,12 @@ if __name__ == '__main__':
     csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
     paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
-                          "As", "As90", "time"])
+                          "As", "As90", "time", "star_flag"])
+    if args.catalogue:
+        outfile = outfolder / "occluded-object-locations.csv"
+        objcsvfile = open(outfile, mode="w")
+        objwriter = csv.writer(objcsvfile, delimiter=",")
+        objwriter.writerow(["file", "ra", "dec", "type"])
 
     files.sort()
     for file in files:
@@ -89,7 +99,8 @@ if __name__ == '__main__':
             continue
         print(file)
 
-        data = fits.getdata(file)
+        data, header = fits.getdata(file, header=True)
+
         imgsize = data.shape[0]
         # The following is required as fits files are big endian and skimage
         # assumes little endian. https://stackoverflow.com/a/30284033/6106938
@@ -123,11 +134,28 @@ if __name__ == '__main__':
                 print(f"ERROR! Skybgr not calculated for {file} as skyregion is less than 100 pixels.")
             else:
                 print(f"ERROR! Skybgr not calculated for {file} as Gaussian could not be fitted to image.")
-            paramwriter.writerow([f"{file}", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0"])
+            paramwriter.writerow([f"{file}", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0", "False"])
+            filename = file.name
+            filename = "pixelmap_" + filename
+            outfile = outfolder / filename
+            hdu = fits.PrimaryHDU(data=np.zeros_like(data), header=header)
+            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
             print(" ")
             continue
 
         mask = pixmap.pixelmap(data, sky + sky_err, 3)
+
+        star_flag = False
+        if args.catalogue:
+            w = wcs.WCS(header)
+            star_flag, objlist = objectMasker.objectOccluded(mask, file.name, args.catalogue, w)
+            if star_flag:
+                for i, obj in enumerate(objlist):
+                    if i == 0:
+                        objwriter.writerow([f"{file}", obj[0], obj[1], ""])
+                    else:
+                        objwriter.writerow(["", obj[0], obj[1], ""])
+
         data -= sky
 
         # clean image of external sources
@@ -136,13 +164,15 @@ if __name__ == '__main__':
             filename = file.name
             filename = "clean_" + filename
             outfile = outfolder / filename
-            fits.writeto(outfile, data, overwrite=True)
+            hdu = fits.PrimaryHDU(data=data, header=header)
+            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
         if args.savepixmap:
             filename = file.name
             filename = "pixelmap_" + filename
             outfile = outfolder / filename
-            fits.writeto(outfile, mask, overwrite=True)
+            hdu = fits.PrimaryHDU(data=mask, header=header)
+            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
         objectpix = np.nonzero(mask == 1)
         cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
@@ -164,7 +194,7 @@ if __name__ == '__main__':
 
         f = time.time()
         timetaken = f - s
-        paramwriter.writerow([f"{file}", f"{apix}", f"{r_max}", f"{sky}", f"{sky_err}", f"{A[0]}", f"{A[1]}", f"{As[0]}", f"{As90[0]}", f"{timetaken}"])
+        paramwriter.writerow([f"{file}", f"{apix}", f"{r_max}", f"{sky}", f"{sky_err}", f"{A[0]}", f"{A[1]}", f"{As[0]}", f"{As90[0]}", f"{timetaken}", f"{star_flag}"])
 
-    print(" ")
+    objcsvfile.close()
     csvfile.close()

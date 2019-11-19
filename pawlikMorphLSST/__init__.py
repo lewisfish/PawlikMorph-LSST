@@ -6,13 +6,14 @@ import numpy as _np
 
 
 __all__ = ["gaussfitter", "pixmap", "apertures", "asymmetry",
-           "imageutils"]
+           "imageutils", "objectMasker"]
 
 
 def prepareimage(img: _np.ndarray):
 
     from .imageutils import skybgr, cleanimg
     from .pixmap import pixelmap
+    from astropy.io import fits
 
     '''Helper function to prepare images
 
@@ -42,6 +43,7 @@ def prepareimage(img: _np.ndarray):
     img -= sky
 
     img = cleanimg(img, mask)
+    fits.writeto("clean.fits", img)
 
     return img, mask
 

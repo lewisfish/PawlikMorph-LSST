@@ -245,7 +245,6 @@ def cleanimg(img: np.ndarray, pixmap: np.ndarray, filter=False) -> np.ndarray:
 
     imgsize = img.shape[0]
     imgravel = img.ravel()
-    imgclean = imgravel
 
     # Dilate pixelmap
     element = np.ones((9, 9))
@@ -263,7 +262,7 @@ def cleanimg(img: np.ndarray, pixmap: np.ndarray, filter=False) -> np.ndarray:
         # begin sigma clip
         sigmasky = np.std(imgravel[skyind])
 
-        mode_old = 3. * mediansky - 2.*meansky
+        mode_old = 3.*mediansky - 2.*meansky
         mode_new = 0.0
         w = 0
         clipsteps = imgravel.size
@@ -279,12 +278,12 @@ def cleanimg(img: np.ndarray, pixmap: np.ndarray, filter=False) -> np.ndarray:
             mode_diff = abs(mode_old - mode_new)
 
             if mode_diff < 0.01:
-                modesky = mode_new
+                modesky = mode_new.copy()
                 w = clipsteps
             else:
                 w += 1
 
-            mode_old = mode_new
+            mode_old = mode_new.copy()
 
         thres = modesky
 
@@ -309,6 +308,7 @@ def cleanimg(img: np.ndarray, pixmap: np.ndarray, filter=False) -> np.ndarray:
             allpixels = np.append(allpixels, skypixels[0:diff])
 
     # shuffle sky pixels randomly
+    # np.random.seed(0)
     np.random.shuffle(allpixels)
 
     imgclean = np.where((pixmap.ravel() != 1) & (imgravel >= thres), allpixels, imgravel)
