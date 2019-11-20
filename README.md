@@ -42,6 +42,7 @@ First clone this repo. Then either use pip or conda to install dependencies:
  - Astropy 3.0.3+
  - Scikit-image 0.14.0+
  - Pandas 0.25.3+
+ - photutils 0.7.1+
  
  ## TODO
   - [x] Calculate Asymmetry

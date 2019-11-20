@@ -10,5 +10,6 @@ dependencies:
   - scipy
   - numba
   - matplotlib
+  - photutils
   - pandas
 
