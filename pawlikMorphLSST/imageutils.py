@@ -2,17 +2,29 @@ from typing import List, Tuple
 
 import numpy as np
 from astropy import wcs
+from astropy import units
+from astropy.convolution import Gaussian2DKernel
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.nddata import Cutout2D
 from astropy.modeling import models, fitting
-from astropy import units
+from astropy.stats import gaussian_fwhm_to_sigma, sigma_clipped_stats
+from photutils import CircularAperture, detect_threshold, detect_sources, IRAFStarFinder
 from scipy import ndimage
 from scipy import optimize
 from skimage import transform
 
 from .apertures import distarr
 from .gaussfitter import twodgaussian, moments
+
+
+def inBbox(ex, c):
+
+    if c[0] > ex[0] and c[1] > ex[2]:
+        if c[0] < ex[1] and c[1] < ex[3]:
+            return True
+
+    return False
 
 
 def skybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, int]:
@@ -324,140 +336,54 @@ def cleanimg(img: np.ndarray, pixmap: np.ndarray, filter=False) -> np.ndarray:
     return imgclean
 
 
-def calcRotation(cd: np.ndarray) -> float:
-    # Copyright (c) 2011-2019, Ginga Maintainers
+def maskstarsSEG(img):
 
-    # All rights reserved.
+    cenpix = np.array([int(img.shape[0]/2) + 1, int(img.shape[1]/2) + 1])
+    mean, median, std = sigma_clipped_stats(img, sigma=3.)
 
-    # Redistribution and use in source and binary forms, with or without
-    # modification, are permitted provided that the following conditions are
-    # met:
+    imgclean = np.copy(img)
+    threshold = detect_threshold(img, 1.5)
+    sigma = 3.0 * gaussian_fwhm_to_sigma  # FWHM = 3.
+    kernel = Gaussian2DKernel(sigma, x_size=3, y_size=3)
+    kernel.normalize()
+    segm = detect_sources(img, threshold, npixels=8, filter_kernel=kernel)
 
-    # * Redistributions of source code must retain the above copyright
-    #   notice, this list of conditions and the following disclaimer.
+    stars = []
+    for i, segment in enumerate(segm.segments):
 
-    # * Redistributions in binary form must reproduce the above copyright
-    #   notice, this list of conditions and the following disclaimer in the
-    #   documentation and/or other materials provided with the
-    #   distribution.
+        if not inBbox(segment.bbox.extent, cenpix):
+            stars.append(i)
 
-    # * Neither the name of Ginga Maintainers nor the names of its
-    #   contributors may be used to endorse or promote products derived from
-    #   this software without specific prior written permission.
+    for i in stars:
+        masked = segm.segments[i].data_ma
+        masked = np.where(masked > 0., 1., 0.) * np.random.normal(mean, std, size=segm.segments[i].data.shape)
+        imgclean[segm.segments[i].bbox.slices] = masked
 
-    # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-    # IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-    # TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-    # PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-    # HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-    # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-    # TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-    # PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-    # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-    # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-    '''Function that calculates rotation from a cd matrix. Adapted from
-       Ginga source code: https://ejeschke.github.io/ginga/.
+        imgclean = np.where(imgclean == 0, img, imgclean)
 
-    Parameters
-    ----------
-
-    cd : np.ndarray
-        Matrix of cd values
-
-    Returns
-    -------
-
-    xrot : float
-        Angle of the image rotation.
-    '''
-
-    cd11 = cd[0, 0]
-    cd12 = cd[0, 1]
-    cd21 = cd[1, 0]
-    cd22 = cd[1, 1]
-
-    det = cd11*cd22 - cd12*cd21
-    if det < 0:
-        sgn = -1
-    else:
-        sgn = 1
-
-    if cd21 == 0 or cd12 == 0:
-        xrot = 0
-        yrot = 0
-        cdelt1 = cd11
-        cdelt2 = cd22
-    else:
-        xrot = np.arctan2(sgn * cd12, sgn*cd11)
-        yrot = np.arctan2(-cd21, cd22)
-
-        cdelt1 = sgn * np.sqrt(cd11**2 + cd12**2)
-        cdelt2 = np.sqrt(cd11**2 + cd21**2)
-
-    xrot = np.degrees(xrot)+180.
-    return xrot
+    return imgclean
 
 
-def cutoutImg(file: str, ra: float, dec: float, stampsize: int, imgsource=None) -> np.ndarray:
-    '''Function to cutout postage stamp of a given pixel size from larger image
+def maskstarsfinder(img):
 
-    Parameters
-    ----------
+    cenpix = np.array([int(img.shape[0]/2) + 1, int(img.shape[1]/2) + 1])
+    mean, median, std = sigma_clipped_stats(img, sigma=3.)
 
-    file : str
-        Name of file to be cutout.
-    ra : float
-        RA of object in large image.
-    dec : float
-        DEC of object in large image.
-    stampsize:
-        Size of image to cutout and return.
-    imgsource: str, optional
-        Source of image, i.e SDSS, LSST, HSC
+    imgclean = np.copy(img)
+    daofind = IRAFStarFinder(fwhm=2.0, threshold=5.*std)
+    sources = daofind(img - median)
+    imgclean = np.copy(img)
 
-    Returns
-    -------
+    if sources is None:
+        return imgclean
 
-    cutout.data : np.ndarray
-        Postage stamp image of given size.
+    positions = np.transpose((sources['xcentroid'], sources['ycentroid']))
+    for i in range(0, positions.shape[0]):
+        if abs(positions[i][1] - cenpix[1]) > 10 and abs(positions[i][0] - cenpix[0]) > 10:
+            apertures = CircularAperture(positions[i], r=2.2*sources[i]["fwhm"])
+            mask = apertures.to_mask(method="center").to_image(img.shape)
 
-    '''
+            maskvals = mask * np.random.normal(mean, std, size=img.shape)
+            imgclean = np.where(mask == 1., maskvals, imgclean)
 
-    hdullist = fits.open(file)
-
-    if imgsource:
-        if imgsource.lower() == "sdss":
-            var = 0
-        elif imgsource.lower() == "hsc":
-            var = 1
-        else:
-            print("ERROR! Source not supported!")
-            sys.exit()
-    else:
-        var = 0
-
-    w = wcs.WCS(hdullist[var].header)
-
-    # hdullist[var].scale("int32", "old")  # scale images properly
-    data = hdullist[var].data
-    data = data.byteswap().newbyteorder()
-
-    # get central pixel position in pixels
-    pos = SkyCoord(ra*units.deg, dec*units.deg)
-    pos = wcs.utils.skycoord_to_pixel(pos, wcs=w)
-    x = pos[0]
-    y = pos[1]
-
-    # Calculate rotation of image from CD matrix
-    cd = w.wcs.cd
-    angle = -calcRotation(cd)
-
-    # rotate image and cutout postage stamp
-    img_rot = transform.rotate(data, angle, center=(x, y), preserve_range=True,
-                               order=0)
-    cutout = Cutout2D(img_rot, pos, (stampsize, stampsize), wcs=w,
-                      mode="strict", copy=True)
-    hdullist.close()
-
-    return cutout.data
+    return imgclean

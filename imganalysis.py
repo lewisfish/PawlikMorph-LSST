@@ -36,7 +36,7 @@ if __name__ == '__main__':
     parser.add_argument("-src", "--imgsource", type=str, default="sdss", choices=["sdss", "hsc"],
                         help="Source of the image.")
     parser.add_argument("-cc", "--catalogue", type=str, help="Check if any object in the\
-                        provided catalogue occulds the analysed object.")
+                        provided catalogue occludes the analysed object.")
 
     args = parser.parse_args()
 
@@ -143,18 +143,19 @@ if __name__ == '__main__':
             print(" ")
             continue
 
+        # data = imageutils.maskstarsSEG(data)
         mask = pixmap.pixelmap(data, sky + sky_err, 3)
 
         star_flag = False
         if args.catalogue:
             w = wcs.WCS(header)
-            star_flag, objlist = objectMasker.objectOccluded(mask, file.name, args.catalogue, w)
+            star_flag, objlist = objectMasker.objectOccluded(mask, file.name, args.catalogue, w, galaxy=True, cosmicray=True, unknown=True)
             if star_flag:
                 for i, obj in enumerate(objlist):
                     if i == 0:
-                        objwriter.writerow([f"{file}", obj[0], obj[1], ""])
+                        objwriter.writerow([f"{file}", obj[0], obj[1], obj[2]])
                     else:
-                        objwriter.writerow(["", obj[0], obj[1], ""])
+                        objwriter.writerow(["", obj[0], obj[1], obj[2]])
 
         data -= sky
 
@@ -196,5 +197,6 @@ if __name__ == '__main__':
         timetaken = f - s
         paramwriter.writerow([f"{file}", f"{apix}", f"{r_max}", f"{sky}", f"{sky_err}", f"{A[0]}", f"{A[1]}", f"{As[0]}", f"{As90[0]}", f"{timetaken}", f"{star_flag}"])
 
-    objcsvfile.close()
+    if args.catalogue:
+        objcsvfile.close()
     csvfile.close()

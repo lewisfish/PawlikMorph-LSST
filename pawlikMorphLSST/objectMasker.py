@@ -104,6 +104,7 @@ def findStars(catalogue: str, ra: float, dec: float,
     stars = df.loc[df['type'] == "STAR"]
     ras = list(stars["ra"])
     decs = list(stars["dec"])
+    types = ["STAR" for i in range(0, len(ras))]
 
     if galaxy:
         galaxies = df.loc[df['type'] == "GALAXY"]
@@ -111,6 +112,7 @@ def findStars(catalogue: str, ra: float, dec: float,
         decg = list(galaxies["dec"])
         ras += rag
         decs += decg
+        types += ["GALAXY" for i in range(0, len(ras))]
 
     if cosmicray:
         cr = df.loc[df['type'] == "COSMIC_RAY"]
@@ -118,6 +120,7 @@ def findStars(catalogue: str, ra: float, dec: float,
         deccr = list(cr["dec"])
         ras += racr
         decs += deccr
+        types += ["COSMIC_RAY" for i in range(0, len(ras))]
 
     if unknown:
         unk = df.loc[df['type'] == "UNKNOWN"]
@@ -125,12 +128,13 @@ def findStars(catalogue: str, ra: float, dec: float,
         decu = list(unk["dec"])
         ras += rau
         decs += decu
+        types += ["UNKNOWN" for i in range(0, len(ras))]
 
-    objs = getObject(ras, decs, xmin, xmax, ymin, ymax)
+    objs = getObject(ras, decs, types, xmin, xmax, ymin, ymax)
     return objs
 
 
-def getObject(ra: List[float], dec: List[float], xmin: float, xmax: float,
+def getObject(ra: List[float], dec: List[float], types: List[str], xmin: float, xmax: float,
               ymin: float, ymax: float) -> List[float]:
 
     '''Function that check that objects is nearby object of interest.
@@ -141,6 +145,8 @@ def getObject(ra: List[float], dec: List[float], xmin: float, xmax: float,
         List of RAs of potential nearby objects.
     dec: List[float]
         List of DECs of potential nearby objects.
+    types: List[str]
+        List of types for potential nearby objects.
     xmin: float
         minimum in x of bounding box (degrees).
     xmax: float
@@ -159,9 +165,9 @@ def getObject(ra: List[float], dec: List[float], xmin: float, xmax: float,
     '''
 
     pos = []
-    for i, j in zip(ra, dec):
+    for i, j, k in zip(ra, dec, types):
         if i > xmin and i < xmax:
             if j > ymin and j < ymax:
-                pos.append([i, j])
+                pos.append([i, j, k])
 
     return pos
