@@ -5,7 +5,8 @@ Replicates the ability to prepare images, generate object binary masks and calcu
 
 ## Usage
 
-./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-aperpixmap] [-spm] [-sci] [-li] [-src]
+./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sci] [-li] [-src {sdss,hsc}] [-cc CATALOGUE]
+
 
  - -h, shows the help screen
  - -f FILE, Path to a single image for analysis
@@ -17,6 +18,7 @@ Replicates the ability to prepare images, generate object binary masks and calcu
  - -sci, Save cleaned image
  - -li, Use larger image cutouts to estimate sky background
  - -src, Source of the image
+ - -cc, Check if any object in the provided catalogue occludes the analysed object
  
  Example
   - ./imganalysis.py -f sample/sdsscutout_211.51-0.31_rband.fits -Aall -spm -sci -src sdss
@@ -39,6 +41,7 @@ First clone this repo. Then either use pip or conda to install dependencies:
  - Numba 0.38.1+
  - Astropy 3.0.3+
  - Scikit-image 0.14.0+
+ - Pandas 0.25.3+
  
  ## TODO
   - [x] Calculate Asymmetry
