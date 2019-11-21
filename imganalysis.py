@@ -13,7 +13,10 @@ if __name__ == '__main__':
     import numpy as np
     # import matplotlib.pyplot as plt
 
-    from pawlikMorphLSST import asymmetry, apertures, pixmap, imageutils, objectMasker
+    from pawlikMorphLSST import asymmetry, apertures, pixmap, imageutils, objectMasker, helpers
+
+    # suppress warnings about unrecognised keywords
+    # warnings.simplefilter('ignore', category=AstropyWarning)
 
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
@@ -40,49 +43,31 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if not args.file and not args.folder:
-        print("Script needs input images to work!!")
-        sys.exit()
-
-    # get image size. Assume all images the same size and are square
-    # suppress warnings about unrecognised keywords
-    warnings.simplefilter('ignore', category=AstropyWarning)
-    # add files to a list
-    files = []
-    if args.file:
-        files.append(Path(args.file))
-    elif args.folder:
-        # TODO change to a generator
-        files = list(Path(args.folder).glob(f"{args.imgsource}cutout*.fits"))
-
-    if files[0].exists():
-        data = fits.getdata(files[0])
-        imgsize = data.shape[0]
-    else:
-        print(f"Fits image:{files[0].name} does not exist!")
-        sys.exit()
-
-    if args.folder:
-        outfolder = Path(args.folder).parents[0] / "output/"
-    else:
-        outfolder = Path(args.file).parents[0] / "output/"
-
-    if not outfolder.exists():
-        outfolder.mkdir()
+    files = helpers.getFiles(args)
+    curfolder, outfolder = helpers.getLocation(args)
 
     outfile = outfolder / "parameters.csv"
     csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
     paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
                           "As", "As90", "time", "star_flag"])
+
     if args.catalogue:
         outfile = outfolder / "occluded-object-locations.csv"
         objcsvfile = open(outfile, mode="w")
         objwriter = csv.writer(objcsvfile, delimiter=",")
         objwriter.writerow(["file", "ra", "dec", "type"])
 
-    files.sort()
     for file in files:
+
+        try:
+            img, header, imgsize = helpers.checkFile(file)
+        except IOError:
+            print(f"File {file}, does not exist!")
+            continue
+        except AttributeError as e:
+            continue
+
         # set default values for calculated parameters
         apix = (-99, -99)
         r_max = -99
@@ -94,40 +79,10 @@ if __name__ == '__main__':
 
         s = time.time()
 
-        if not file.exists():
-            print(f"Fits image:{file.name} does not exist!")
-            continue
         print(file)
 
-        data, header = fits.getdata(file, header=True)
-
-        imgsize = data.shape[0]
-        # The following is required as fits files are big endian and skimage
-        # assumes little endian. https://stackoverflow.com/a/30284033/6106938
-        # https://en.wikipedia.org/wiki/Endianness
-        data = data.byteswap().newbyteorder()
-
-        if not data.shape[0] == data.shape[1]:
-            print("ERROR: wrong image size. Please preprocess data!")
-            sys.exit()
-
         # get sky background value and error
-        if args.largeimage:
-            filename = file.name
-            if args.imgsource == "sdss":
-                filename = filename.replace("sdss", "sdssl", 1)
-            elif args.imgsource == "hsc":
-                filename = filename.replace("hsc", "hscl", 1)
-
-            infile = Path(args.folder) / Path(filename)
-            if infile.exists():
-                datatmp = fits.getdata(Path(args.folder) / Path(filename))  # FIXME: crashes if given a single file
-                sky, sky_err, flag = imageutils.skybgr(datatmp, datatmp.shape[0], data)
-            else:
-                print(f"{infile} does not exist!")
-                sky, sky_err, flag = imageutils.skybgr(data, imgsize)
-        else:
-            sky, sky_err, flag = imageutils.skybgr(data, imgsize)
+        sky, sky_err, flag = imageutils.skybgr(img, imgsize, file, args)
 
         if flag != 0:
             if flag == 1:
@@ -138,13 +93,13 @@ if __name__ == '__main__':
             filename = file.name
             filename = "pixelmap_" + filename
             outfile = outfolder / filename
-            hdu = fits.PrimaryHDU(data=np.zeros_like(data), header=header)
+            hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
             hdu.writeto(outfile, overwrite=True, output_verify='ignore')
             print(" ")
             continue
 
-        # data = imageutils.maskstarsSEG(data)
-        mask = pixmap.pixelmap(data, sky + sky_err, 3)
+        # img = imageutils.maskstarsSEG(img)
+        mask = pixmap.pixelmap(img, sky + sky_err, 3)
 
         star_flag = False
         if args.catalogue:
@@ -157,15 +112,15 @@ if __name__ == '__main__':
                     else:
                         objwriter.writerow(["", obj[0], obj[1], obj[2]])
 
-        data -= sky
+        img -= sky
 
         # clean image of external sources
-        data = imageutils.cleanimg(data, mask)
+        img = imageutils.cleanimg(img, mask)
         if args.savecleanimg:
             filename = file.name
             filename = "clean_" + filename
             outfile = outfolder / filename
-            hdu = fits.PrimaryHDU(data=data, header=header)
+            hdu = fits.PrimaryHDU(data=img, header=header)
             hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
         if args.savepixmap:
@@ -183,11 +138,11 @@ if __name__ == '__main__':
         r_max = np.max(objectdist)
         aperturepixmap = apertures.aperpixmap(imgsize, r_max, 9, 0.1)
 
-        apix = asymmetry.minapix(data, mask, aperturepixmap)
+        apix = asymmetry.minapix(img, mask, aperturepixmap)
         angle = 180.
 
         if args.A or args.Aall:
-            A = asymmetry.calcA(data, mask, aperturepixmap, apix, angle, noisecorrect=True)
+            A = asymmetry.calcA(img, mask, aperturepixmap, apix, angle, noisecorrect=True)
 
         if args.As or args.Aall:
             As = asymmetry.calcA(mask, mask, aperturepixmap, apix, angle)

@@ -1,3 +1,4 @@
+from pathlib import Path as _Path
 from typing import List, Tuple
 
 import numpy as np
@@ -12,22 +13,63 @@ from astropy.stats import gaussian_fwhm_to_sigma, sigma_clipped_stats
 from photutils import CircularAperture, detect_threshold, detect_sources, IRAFStarFinder
 from scipy import ndimage
 from scipy import optimize
-from skimage import transform
 
 from .apertures import distarr
 from .gaussfitter import twodgaussian, moments
 
 
-def inBbox(ex, c):
+def inBbox(extent: List[float], point: List[float]) -> bool:
+    ''' Check if a point is in a box defined by the bounds extent
 
-    if c[0] > ex[0] and c[1] > ex[2]:
-        if c[0] < ex[1] and c[1] < ex[3]:
+    Parameters
+    ----------
+
+    extent: List[float]
+        The extent of the bounding box. indices 0, 1 refer to xmin, xmax.
+        2, 3 refer to ymin, ymax.
+    point: List[float]
+        The point that is to be checked.
+
+    Returns
+    -------
+
+    bool
+
+    '''
+
+    if point[0] > extent[0] and point[1] > extent[2]:
+        if point[0] < extent[1] and point[1] < extent[3]:
             return True
 
     return False
 
 
-def skybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, int]:
+def skybgr(img, imgsize, file, args):
+
+    if args.largeimage:
+        filename = file.name
+        if args.imgsource == "sdss":
+            filename = filename.replace("sdss", "sdssl", 1)
+        elif args.imgsource == "hsc":
+            filename = filename.replace("hsc", "hscl", 1)
+
+        infile = file.parents[0] / _Path(filename)
+        try:
+            largeimg = fits.getdata(infile)
+            # clean image so that skybgr not over estimated
+            largeimg = maskstarsSEG(largeimg)
+            sky, sky_err, flag = _calcSkybgr(largeimg, largeimg.shape[0], img)
+        except IOError:
+            print(f"Large image of {filename}, does not exist!")
+            sky, sky_err, flag = _calcSkybgr(img, imgsize)
+
+    else:
+        sky, sky_err, flag = _calcSkybgr(img, imgsize)
+
+    return sky, sky_err, flag
+
+
+def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, int]:
     '''Function that calculates the sky background value.
 
     Parameters
