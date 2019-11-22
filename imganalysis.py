@@ -1,6 +1,5 @@
 if __name__ == '__main__':
     import csv
-    import sys
     import time
     import warnings
     from argparse import ArgumentParser
@@ -11,12 +10,11 @@ if __name__ == '__main__':
     from astropy import wcs
 
     import numpy as np
-    # import matplotlib.pyplot as plt
 
     from pawlikMorphLSST import asymmetry, apertures, pixmap, imageutils, objectMasker, helpers
 
     # suppress warnings about unrecognised keywords
-    # warnings.simplefilter('ignore', category=AstropyWarning)
+    warnings.simplefilter('ignore', category=AstropyWarning)
 
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
@@ -76,19 +74,16 @@ if __name__ == '__main__':
         A = [-99, -99]
         As = [-99, -99]
         As90 = [-99, -99]
+        star_flag = False
 
         s = time.time()
 
         print(file)
 
         # get sky background value and error
-        sky, sky_err, flag = imageutils.skybgr(img, imgsize, file, args)
-
-        if flag != 0:
-            if flag == 1:
-                print(f"ERROR! Skybgr not calculated for {file} as skyregion is less than 100 pixels.")
-            else:
-                print(f"ERROR! Skybgr not calculated for {file} as Gaussian could not be fitted to image.")
+        try:
+            sky, sky_err = imageutils.skybgr(img, imgsize, file, args)
+        except AttributeError:
             paramwriter.writerow([f"{file}", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0", "False"])
             filename = file.name
             filename = "pixelmap_" + filename
@@ -101,7 +96,6 @@ if __name__ == '__main__':
         # img = imageutils.maskstarsSEG(img)
         mask = pixmap.pixelmap(img, sky + sky_err, 3)
 
-        star_flag = False
         if args.catalogue:
             w = wcs.WCS(header)
             star_flag, objlist = objectMasker.objectOccluded(mask, file.name, args.catalogue, w, galaxy=True, cosmicray=True, unknown=True)

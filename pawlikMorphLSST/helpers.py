@@ -1,12 +1,12 @@
-from pathlib import Path as _Path
-import sys as _sys
+from pathlib import Path
+import sys
 
-from astropy.io import fits as _fits
-import numpy as _np
+from astropy.io import fits
+import numpy as np
 import glob as gb
-from .imageutils import cleanimg as _cleanimg
-from .imageutils import skybgr as _skybgr
-from .pixmap import pixelmap as _pixelmap
+from .imageutils import cleanimg
+from .imageutils import skybgr
+from .pixmap import pixelmap
 
 __all__ = ["checkFile", "getLocation", "prepareimage"]
 
@@ -27,12 +27,12 @@ class _WrongCmdLineArguments(_Error):
     '''Wrong, conflicting, or missing cmd line arguments'''
     def __init__(self, value):
         print(f"{value}")
-        _sys.exit()
+        sys.exit()
 
 
 def checkFile(filename):
 
-    img, header = _fits.getdata(filename, header=True)
+    img, header = fits.getdata(filename, header=True)
     # The following is required as fits files are big endian and skimage
     # assumes little endian. https://stackoverflow.com/a/30284033/6106938
     # https://en.wikipedia.org/wiki/Endianness
@@ -62,10 +62,10 @@ def getFiles(args):
     '''
 
     if args.folder:
-        return _Path(args.folder).glob(f"{args.imgsource}cutout*.fits")
+        return Path(args.folder).glob(f"{args.imgsource}cutout*.fits")
     else:
         # just single file so place in a generator manually
-        return (_Path(args.file) for i in range(1))
+        return (Path(args.file) for i in range(1))
 
 
 def getLocation(args):
@@ -90,10 +90,10 @@ def getLocation(args):
         raise _WrongCmdLineArguments("Script needs input images to work!!")
 
     if args.folder:
-        curfolder = _Path(args.folder)
+        curfolder = Path(args.folder)
         outfolder = curfolder.parents[0] / "output"
     else:
-        curfolder = _Path(args.file).parents[0]
+        curfolder = Path(args.file).parents[0]
         outfolder = curfolder / "output"
 
     if not outfolder.exists():
@@ -102,7 +102,7 @@ def getLocation(args):
     return curfolder, outfolder
 
 
-def prepareimage(img: _np.ndarray):
+def prepareimage(img: np.ndarray):
 
     '''Helper function to prepare images
 
@@ -127,10 +127,10 @@ def prepareimage(img: _np.ndarray):
 
     img = img.byteswap().newbyteorder()
 
-    sky, sky_err, flag = _skybgr(img, img.shape[0])
-    mask = _pixelmap(img, sky + sky_err, 3)
+    sky, sky_err, flag = skybgr(img, img.shape[0])
+    mask = pixelmap(img, sky + sky_err, 3)
     img -= sky
 
-    img = _cleanimg(img, mask)
+    img = cleanimg(img, mask)
 
     return img, mask

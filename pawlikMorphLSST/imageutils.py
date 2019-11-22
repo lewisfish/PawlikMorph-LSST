@@ -18,6 +18,22 @@ from .apertures import distarr
 from .gaussfitter import twodgaussian, moments
 
 
+__all__ = ["skybgr", "cleanimg", "maskstarsfinder", "maskstarsSEG"]
+
+
+class _Error(Exception):
+    pass
+
+
+class _SkyError(_Error):
+    '''Class of exception where the sky background has been
+       improperly calculated '''
+
+    def __init__(self, value):
+        print(value)
+        raise AttributeError
+
+
 def inBbox(extent: List[float], point: List[float]) -> bool:
     ''' Check if a point is in a box defined by the bounds extent
 
@@ -44,7 +60,26 @@ def inBbox(extent: List[float], point: List[float]) -> bool:
     return False
 
 
-def skybgr(img, imgsize, file, args):
+def skybgr(img: np.ndarray, imgsize: int, file, args) -> Tuple[float]:
+    '''Helper function for calculating skybgr
+
+    Parameters
+    ----------
+
+    img: np.ndarray
+
+    imgsize: int
+
+    file: Path object
+
+    args: argpasre object
+
+    Returns
+    -------
+
+    sky, sky_err: Tuple[float]
+
+    '''
 
     if args.largeimage:
         filename = file.name
@@ -58,15 +93,15 @@ def skybgr(img, imgsize, file, args):
             largeimg = fits.getdata(infile)
             # clean image so that skybgr not over estimated
             largeimg = maskstarsSEG(largeimg)
-            sky, sky_err, flag = _calcSkybgr(largeimg, largeimg.shape[0], img)
+            sky, sky_err = _calcSkybgr(largeimg, largeimg.shape[0], img)
         except IOError:
             print(f"Large image of {filename}, does not exist!")
-            sky, sky_err, flag = _calcSkybgr(img, imgsize)
+            sky, sky_err = _calcSkybgr(img, imgsize)
 
     else:
-        sky, sky_err, flag = _calcSkybgr(img, imgsize)
+        sky, sky_err = _calcSkybgr(img, imgsize)
 
-    return sky, sky_err, flag
+    return sky, sky_err
 
 
 def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, int]:
@@ -85,13 +120,11 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
     Returns
     -------
 
-    sky, sky_err, and flag : float, float, int
+    sky, sky_err : float, float, int
         sky is the sky background measurement.
         sky_err is the error in that measurement.
-        flag indicates that the image size was less than ideal.
     '''
 
-    flag = 0
     npix = imgsize
     cenpix = np.array([int(npix/2) + 1, int(npix/2) + 1])
     distarrvar = distarr(npix, npix, cenpix)
@@ -100,15 +133,15 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
     # outwith this
     try:
         if smallimg is not None:
-            yfit = gauss2dfit(smallimg, smallimg.shape[0])
+            yfit = _gauss2dfit(smallimg, smallimg.shape[0])
         else:
-            yfit = gauss2dfit(img, imgsize)
+            yfit = _gauss2dfit(img, imgsize)
         fact = 2 * np.sqrt(2 * np.log(2))
         fwhm_x = fact * np.abs(yfit[4])
         fwhm_y = fact * np.abs(yfit[5])
         r_in = 2. * max(fwhm_x, fwhm_y)
     except RuntimeError:
-        yfit = altgauss2dfit(img, imgsize)
+        yfit = _altgauss2dfit(img, imgsize)
         fwhm_x = yfit.x_fwhm
         fwhm_y = yfit.y_fwhm
         r_in = 2. * max(fwhm_x, fwhm_y)
@@ -118,66 +151,62 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
 
     if skyregion.shape[0] < 300:
         # if skyregion too small try with more robust Gaussian fitter
-        yfit = altgauss2dfit(img, imgsize)
+        yfit = _altgauss2dfit(img, imgsize)
         fwhm_x = yfit.x_fwhm
         fwhm_y = yfit.y_fwhm
         r_in = 2. * max(fwhm_x, fwhm_y)
         skyind = np.nonzero(distarrvar > r_in)
         skyregion = img[skyind]
-        if skyregion.shape[0] < 100:
-            return -99, -99, 1
 
-    if skyregion.shape[0] > 100:
-        # Flag the measurement if sky region smaller than 20000 pixels
-        # (Simard et al. 2011)
-        if skyregion.shape[0] < 20000:
-            print(f"Warning! skyregion too small {skyregion.shape[0]}")
+    if skyregion.shape[0] < 100:
+        raise _SkyError(f"Error! Sky region too small {skyregion.shape[0]}")
 
-        mean_sky = np.mean(skyregion)
-        median_sky = np.median(skyregion)
-        sigma_sky = np.std(skyregion)
+    # Flag the measurement if sky region smaller than 20000 pixels
+    # (Simard et al. 2011)
+    if skyregion.shape[0] < 20000:
+        print(f"Warning! skyregion smaller than optimal {skyregion.shape[0]}")
 
-        if mean_sky <= median_sky:
-            # non crowded region. Use mean for background measurement
-            sky = mean_sky
-            sky_err = sigma_sky
-        else:
-            # crowded region. Use mode for background measurement
-            mode_old = 3.*median_sky - 2.*mean_sky
-            mode_new = 0.0
-            w = 0
-            clipsteps = skyregion.shape[0]
+    mean_sky = np.mean(skyregion)
+    median_sky = np.median(skyregion)
+    sigma_sky = np.std(skyregion)
 
-            # Begin sigma clipping until convergence
-            while w < clipsteps:
-
-                skyind = np.nonzero(np.abs(skyregion - mean_sky) < 3. * sigma_sky)
-                skyregion = skyregion[skyind]
-
-                mean_sky = np.mean(skyregion)
-                median_sky = np.median(skyregion)
-                sigma_sky = np.std(skyregion)
-                mode_new = 3.*median_sky - 2.*mean_sky
-                mode_diff = np.abs(mode_old - mode_new)
-
-                if mode_diff < 0.01:
-                    mode_sky = mode_new
-                    w = clipsteps
-                else:
-                    w += 1
-                mode_old = mode_new
-
-            sky = mode_sky
-            sky_err = sigma_sky
+    if mean_sky <= median_sky:
+        # non crowded region. Use mean for background measurement
+        sky = mean_sky
+        sky_err = sigma_sky
     else:
-        sky = -99
-        sky_err = -99
-        flag = 1
+        # crowded region. Use mode for background measurement
+        mode_old = 3.*median_sky - 2.*mean_sky
+        mode_new = 0.0
+        w = 0
+        clipsteps = skyregion.shape[0]
 
-    return sky, sky_err, flag
+        # Begin sigma clipping until convergence
+        while w < clipsteps:
+
+            skyind = np.nonzero(np.abs(skyregion - mean_sky) < 3. * sigma_sky)
+            skyregion = skyregion[skyind]
+
+            mean_sky = np.mean(skyregion)
+            median_sky = np.median(skyregion)
+            sigma_sky = np.std(skyregion)
+            mode_new = 3.*median_sky - 2.*mean_sky
+            mode_diff = np.abs(mode_old - mode_new)
+
+            if mode_diff < 0.01:
+                mode_sky = mode_new
+                w = clipsteps
+            else:
+                w += 1
+            mode_old = mode_new
+
+        sky = mode_sky
+        sky_err = sigma_sky
+
+    return sky, sky_err
 
 
-def gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
+def _gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
     '''Function that fits a 2D Gaussian to image data.
 
     Parameters
@@ -212,7 +241,7 @@ def gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
     return np.abs(popt)
 
 
-def altgauss2dfit(img: np.ndarray, imgsize: float) -> models:
+def _altgauss2dfit(img: np.ndarray, imgsize: float) -> models:
     '''Alternative slower but more robust Gaussian fitter.
 
     img : np.ndarray

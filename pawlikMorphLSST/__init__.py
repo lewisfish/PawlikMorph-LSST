@@ -2,18 +2,21 @@
     morphological properties.
 '''
 
-import numpy as _np
+from pawlikMorphLSST.apertures import *
+from pawlikMorphLSST.asymmetry import *
+from pawlikMorphLSST.helpers import *
+from pawlikMorphLSST.pixmap import *
+from pawlikMorphLSST.objectMasker import *
+from pawlikMorphLSST.imageutils import *
 
 
 __all__ = ["gaussfitter", "pixmap", "apertures", "asymmetry",
            "imageutils", "objectMasker"]
 
 
-def prepareimage(img: _np.ndarray):
+def prepareimage(img):
 
-    from .imageutils import skybgr, cleanimg
-    from .pixmap import pixelmap
-    from astropy.io import fits
+    from astropy.io import fits as _fits
 
     '''Helper function to prepare images
 
@@ -43,12 +46,15 @@ def prepareimage(img: _np.ndarray):
     img -= sky
 
     img = cleanimg(img, mask)
-    fits.writeto("clean.fits", img)
+    _fits.writeto("clean.fits", img)
 
     return img, mask
 
 
-def calculateMorphology(img: _np.ndarray, mask: _np.ndarray):
+def calculateMorphology(img, mask):
+
+    import numpy as _np
+
     '''Helper function to calculate all Asymmetry parameters.
 
     Parameters
@@ -71,8 +77,6 @@ def calculateMorphology(img: _np.ndarray, mask: _np.ndarray):
 
 
     '''
-    from .apertures import distarr, aperpixmap
-    from .asymmetry import calcA, minapix
 
     imgsize = img.shape[0]
     objectpix = _np.nonzero(mask == 1)

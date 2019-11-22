@@ -4,6 +4,8 @@ import numpy as np
 from scipy import ndimage
 from skimage import transform
 
+__all__ = ["pixelmap"]
+
 
 def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
     # from matplotlib import animation

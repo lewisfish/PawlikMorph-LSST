@@ -1,16 +1,17 @@
 import re
 from typing import Tuple, List
 
-import pandas as _pd
-from astropy import wcs as _wcs
-from astropy.coordinates import SkyCoord as _SkyCoord
-from astropy import units as _units
-import numpy as _np
+import numpy as np
+import pandas as pd
+
+from astropy import wcs
+from astropy.coordinates import SkyCoord
+from astropy import units
 
 __all__ = ["objectOccluded"]
 
 
-def objectOccluded(mask: _np.ndarray, name: str, catalogue: str, wcs,
+def objectOccluded(mask: np.ndarray, name: str, catalogue: str, wcs,
                    galaxy=False, cosmicray=False, unknown=False) -> Tuple[bool, List[float]]:
 
     '''
@@ -42,14 +43,14 @@ def objectOccluded(mask: _np.ndarray, name: str, catalogue: str, wcs,
     ra = float(re.search(r"\d{2,3}\.\d{3,}", name).group())
     dec = float(re.search(r"[\+\-]\d{,3}\.\d{,10}", name).group())
 
-    listofobjs = findStars(catalogue, ra, dec, galaxy, cosmicray, unknown)
+    listofobjs = _findStars(catalogue, ra, dec, galaxy, cosmicray, unknown)
     listofOccludedObjs = []
 
     for obj in listofobjs:
-        pos = _SkyCoord(obj[0]*_units.deg, obj[1]*_units.deg)
-        pos = _wcs.utils.skycoord_to_pixel(pos, wcs=wcs)
-        bools = _np.nonzero(mask[int(pos[1])-1:int(pos[1])+1, int(pos[0])-1:int(pos[0])+1] == 1)
-        if _np.any(bools):
+        pos = SkyCoord(obj[0]*units.deg, obj[1]*units.deg)
+        pos = wcs.utils.skycoord_to_pixel(pos, wcs=wcs)
+        bools = np.nonzero(mask[int(pos[1])-1:int(pos[1])+1, int(pos[0])-1:int(pos[0])+1] == 1)
+        if np.any(bools):
             listofOccludedObjs.append(obj)
 
     if len(listofOccludedObjs) > 0:
@@ -57,7 +58,7 @@ def objectOccluded(mask: _np.ndarray, name: str, catalogue: str, wcs,
     return False, []
 
 
-def findStars(catalogue: str, ra: float, dec: float,
+def _findStars(catalogue: str, ra: float, dec: float,
               galaxy: bool, cosmicray: bool, unknown: bool,
               size=0.008333333333333333,) -> List[float]:
 
@@ -90,7 +91,7 @@ def findStars(catalogue: str, ra: float, dec: float,
     '''
 
     # read in catalogue of nearby objects
-    df = _pd.read_csv(catalogue, dtype={"objID": "float", "ra": "float", "dec": "float", "type": "str"})
+    df = pd.read_csv(catalogue, dtype={"objID": "float", "ra": "float", "dec": "float", "type": "str"})
 
     am = size
 
@@ -130,11 +131,11 @@ def findStars(catalogue: str, ra: float, dec: float,
         decs += decu
         types += ["UNKNOWN" for i in range(0, len(ras))]
 
-    objs = getObject(ras, decs, types, xmin, xmax, ymin, ymax)
+    objs = _getObject(ras, decs, types, xmin, xmax, ymin, ymax)
     return objs
 
 
-def getObject(ra: List[float], dec: List[float], types: List[str], xmin: float, xmax: float,
+def _getObject(ra: List[float], dec: List[float], types: List[str], xmin: float, xmax: float,
               ymin: float, ymax: float) -> List[float]:
 
     '''Function that check that objects is nearby object of interest.

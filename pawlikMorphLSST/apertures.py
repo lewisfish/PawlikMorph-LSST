@@ -4,6 +4,8 @@ import numba as nb
 import numpy as np
 from astropy.io import fits
 
+__all__ = ["makeaperpixmaps", "distarr", "subdistarr", "apercentre"]
+
 
 def makeaperpixmaps(npix: int, folderpath=None) -> None:
     '''Writes the aperture binary masks out after calculation.
