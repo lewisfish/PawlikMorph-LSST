@@ -7,7 +7,6 @@ if __name__ == '__main__':
 
     from astropy.io import fits
     from astropy.utils.exceptions import AstropyWarning
-    from astropy import wcs
 
     import numpy as np
 
@@ -93,12 +92,10 @@ if __name__ == '__main__':
             print(" ")
             continue
 
-        # img = imageutils.maskstarsSEG(img)
         mask = pixmap.pixelmap(img, sky + sky_err, 3)
 
         if args.catalogue:
-            w = wcs.WCS(header)
-            star_flag, objlist = objectMasker.objectOccluded(mask, file.name, args.catalogue, w, galaxy=True, cosmicray=True, unknown=True)
+            star_flag, objlist = objectMasker.objectOccluded(mask, file.name, args.catalogue, header, galaxy=True, cosmicray=True, unknown=True)
             if star_flag:
                 for i, obj in enumerate(objlist):
                     if i == 0:
@@ -109,7 +106,9 @@ if __name__ == '__main__':
         img -= sky
 
         # clean image of external sources
-        img = imageutils.cleanimg(img, mask)
+        # img = imageutils.cleanimg(img, mask)
+        img = imageutils.maskstarsSEG(img)
+
         if args.savecleanimg:
             filename = file.name
             filename = "clean_" + filename

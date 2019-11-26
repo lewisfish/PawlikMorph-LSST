@@ -11,7 +11,7 @@ from astropy import units
 __all__ = ["objectOccluded"]
 
 
-def objectOccluded(mask: np.ndarray, name: str, catalogue: str, wcs,
+def objectOccluded(mask: np.ndarray, name: str, catalogue: str, header,
                    galaxy=False, cosmicray=False, unknown=False) -> Tuple[bool, List[float]]:
 
     '''
@@ -24,8 +24,8 @@ def objectOccluded(mask: np.ndarray, name: str, catalogue: str, wcs,
         Name of file to get ra, dec from
     catalogue: str
         Name of object catalogue to check against
-    wcs: WCSobject
-        WCS information from fits image header
+    header: ?
+        fits image header
     galaxy: bool, optional
         Option to include galaxy objects
     cosmicray: bool, optional
@@ -46,9 +46,11 @@ def objectOccluded(mask: np.ndarray, name: str, catalogue: str, wcs,
     listofobjs = _findStars(catalogue, ra, dec, galaxy, cosmicray, unknown)
     listofOccludedObjs = []
 
+    w = wcs.WCS(header)
+
     for obj in listofobjs:
         pos = SkyCoord(obj[0]*units.deg, obj[1]*units.deg)
-        pos = wcs.utils.skycoord_to_pixel(pos, wcs=wcs)
+        pos = wcs.utils.skycoord_to_pixel(pos, wcs=w)
         bools = np.nonzero(mask[int(pos[1])-1:int(pos[1])+1, int(pos[0])-1:int(pos[0])+1] == 1)
         if np.any(bools):
             listofOccludedObjs.append(obj)
@@ -59,8 +61,8 @@ def objectOccluded(mask: np.ndarray, name: str, catalogue: str, wcs,
 
 
 def _findStars(catalogue: str, ra: float, dec: float,
-              galaxy: bool, cosmicray: bool, unknown: bool,
-              size=0.008333333333333333,) -> List[float]:
+               galaxy: bool, cosmicray: bool, unknown: bool,
+               size=0.008333333333333333,) -> List[float]:
 
     '''Function to find postion of stars from a catalogue,
        within a square box of size around a given object.

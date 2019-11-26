@@ -146,63 +146,38 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
         fwhm_y = yfit.y_fwhm
         r_in = 2. * max(fwhm_x, fwhm_y)
 
-    skyind = np.nonzero(distarrvar > r_in)
-    skyregion = img[skyind]
+    skyregion = distarrvar < r_in
+    skymask = np.ma.array(img, mask=skyregion)
 
-    if skyregion.shape[0] < 300:
+    if skymask.count() < 300:
         # if skyregion too small try with more robust Gaussian fitter
         yfit = _altgauss2dfit(img, imgsize)
         fwhm_x = yfit.x_fwhm
         fwhm_y = yfit.y_fwhm
         r_in = 2. * max(fwhm_x, fwhm_y)
-        skyind = np.nonzero(distarrvar > r_in)
-        skyregion = img[skyind]
+        skyregion = distarrvar < r_in
+        skymask = np.ma.array(img, mask=skyregion)
 
-    if skyregion.shape[0] < 100:
-        raise _SkyError(f"Error! Sky region too small {skyregion.shape[0]}")
+    if skymask.count() < 100:
+        raise _SkyError(f"Error! Sky region too small {skymask.count()}")
 
     # Flag the measurement if sky region smaller than 20000 pixels
     # (Simard et al. 2011)
-    if skyregion.shape[0] < 20000:
-        print(f"Warning! skyregion smaller than optimal {skyregion.shape[0]}")
+    if skymask.count() < 20000:
+        print(f"Warning! skyregion smaller than optimal {skymask.count()}")
 
-    mean_sky = np.mean(skyregion)
-    median_sky = np.median(skyregion)
-    sigma_sky = np.std(skyregion)
+    mean_sky = np.ma.mean(skymask)
+    median_sky = np.ma.median(skymask)
+    sigma_sky = np.ma.std(skymask)
 
     if mean_sky <= median_sky:
         # non crowded region. Use mean for background measurement
         sky = mean_sky
         sky_err = sigma_sky
     else:
-        # crowded region. Use mode for background measurement
-        mode_old = 3.*median_sky - 2.*mean_sky
-        mode_new = 0.0
-        w = 0
-        clipsteps = skyregion.shape[0]
-
-        # Begin sigma clipping until convergence
-        while w < clipsteps:
-
-            skyind = np.nonzero(np.abs(skyregion - mean_sky) < 3. * sigma_sky)
-            skyregion = skyregion[skyind]
-
-            mean_sky = np.mean(skyregion)
-            median_sky = np.median(skyregion)
-            sigma_sky = np.std(skyregion)
-            mode_new = 3.*median_sky - 2.*mean_sky
-            mode_diff = np.abs(mode_old - mode_new)
-
-            if mode_diff < 0.01:
-                mode_sky = mode_new
-                w = clipsteps
-            else:
-                w += 1
-            mode_old = mode_new
-
-        sky = mode_sky
+        mean_sky, median_sky, sigma_sky = sigma_clipped_stats(img, mask=skyregion, sigma=3.)
+        sky = 3.*median_sky - 2.*mean_sky
         sky_err = sigma_sky
-
     return sky, sky_err
 
 
