@@ -1,19 +1,8 @@
 if __name__ == '__main__':
-    import csv
-    import time
-    import warnings
     from argparse import ArgumentParser
     from pathlib import Path
 
-    from astropy.io import fits
-    from astropy.utils.exceptions import AstropyWarning
-
-    import numpy as np
-
-    from pawlikMorphLSST import asymmetry, apertures, pixmap, imageutils, objectMasker, helpers
-
-    # suppress warnings about unrecognised keywords
-    warnings.simplefilter('ignore', category=AstropyWarning)
+    from pawlikMorphLSST import helpers
 
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
@@ -42,109 +31,4 @@ if __name__ == '__main__':
 
     files = helpers.getFiles(args)
     curfolder, outfolder = helpers.getLocation(args)
-
-    outfile = outfolder / "parameters.csv"
-    csvfile = open(outfile, mode="w")
-    paramwriter = csv.writer(csvfile, delimiter=",")
-    paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
-                          "As", "As90", "time", "star_flag"])
-
-    if args.catalogue:
-        outfile = outfolder / "occluded-object-locations.csv"
-        objcsvfile = open(outfile, mode="w")
-        objwriter = csv.writer(objcsvfile, delimiter=",")
-        objwriter.writerow(["file", "ra", "dec", "type"])
-
-    for file in files:
-
-        try:
-            img, header, imgsize = helpers.checkFile(file)
-        except IOError:
-            print(f"File {file}, does not exist!")
-            continue
-        except AttributeError as e:
-            continue
-
-        # set default values for calculated parameters
-        apix = (-99, -99)
-        r_max = -99
-        sky = -99
-        sky_err = -99
-        A = [-99, -99]
-        As = [-99, -99]
-        As90 = [-99, -99]
-        star_flag = False
-
-        s = time.time()
-
-        print(file)
-
-        # get sky background value and error
-        try:
-            sky, sky_err = imageutils.skybgr(img, imgsize, file, args)
-        except AttributeError:
-            paramwriter.writerow([f"{file}", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0", f"0", "False"])
-            filename = file.name
-            filename = "pixelmap_" + filename
-            outfile = outfolder / filename
-            hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
-            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
-            print(" ")
-            continue
-
-        mask = pixmap.pixelmap(img, sky + sky_err, 3)
-
-        if args.catalogue:
-            star_flag, objlist = objectMasker.objectOccluded(mask, file.name, args.catalogue, header, galaxy=True, cosmicray=True, unknown=True)
-            if star_flag:
-                for i, obj in enumerate(objlist):
-                    if i == 0:
-                        objwriter.writerow([f"{file}", obj[0], obj[1], obj[2]])
-                    else:
-                        objwriter.writerow(["", obj[0], obj[1], obj[2]])
-
-        img -= sky
-
-        # clean image of external sources
-        # img = imageutils.cleanimg(img, mask)
-        img = imageutils.maskstarsSEG(img)
-
-        if args.savecleanimg:
-            filename = file.name
-            filename = "clean_" + filename
-            outfile = outfolder / filename
-            hdu = fits.PrimaryHDU(data=img, header=header)
-            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
-
-        if args.savepixmap:
-            filename = file.name
-            filename = "pixelmap_" + filename
-            outfile = outfolder / filename
-            hdu = fits.PrimaryHDU(data=mask, header=header)
-            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
-
-        objectpix = np.nonzero(mask == 1)
-        cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
-
-        distarray = apertures.distarr(imgsize, imgsize, cenpix)
-        objectdist = distarray[objectpix]
-        r_max = np.max(objectdist)
-        aperturepixmap = apertures.aperpixmap(imgsize, r_max, 9, 0.1)
-
-        apix = asymmetry.minapix(img, mask, aperturepixmap)
-        angle = 180.
-
-        if args.A or args.Aall:
-            A = asymmetry.calcA(img, mask, aperturepixmap, apix, angle, noisecorrect=True)
-
-        if args.As or args.Aall:
-            As = asymmetry.calcA(mask, mask, aperturepixmap, apix, angle)
-            As90 = asymmetry.calcA(mask, mask, aperturepixmap, apix, 90.)
-
-        f = time.time()
-        timetaken = f - s
-        paramwriter.writerow([f"{file}", f"{apix}", f"{r_max}", f"{sky}", f"{sky_err}", f"{A[0]}", f"{A[1]}", f"{As[0]}", f"{As90[0]}", f"{timetaken}", f"{star_flag}"])
-
-    if args.catalogue:
-        objcsvfile.close()
-    csvfile.close()
+    helpers.calcMorphology(files, outfolder, args)

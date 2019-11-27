@@ -1,14 +1,49 @@
-from pathlib import Path
+import csv
 import sys
+import time
+import warnings
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Tuple
 
 from astropy.io import fits
+from astropy.utils.exceptions import AstropyWarning
+
 import numpy as np
-import glob as gb
-from .imageutils import cleanimg
+
+from .apertures import aperpixmap
+from .apertures import distarr
+from .asymmetry import calcA
+from .asymmetry import minapix
+from .imageutils import maskstarsSEG
 from .imageutils import skybgr
+from .objectMasker import objectOccluded
 from .pixmap import pixelmap
 
-__all__ = ["checkFile", "getLocation", "prepareimage"]
+__all__ = ["checkFile", "getLocation", "prepareimage", "calcMorphology"]
+
+
+@dataclass
+class Result:
+    '''Class that stores the results of image analysis'''
+
+    file: str
+    A: List[float] = field(default_factory=lambda: [-99., -99.])
+    As: List[float] = field(default_factory=lambda: [-99., -99.])
+    As90: List[float] = field(default_factory=lambda: [-99., -99.])
+    rmax: float = -99
+    apix: Tuple[float] = (-99., -99.)
+    sky: float = -99.
+    sky_err: float = 99.
+    time: float = 0.
+    star_flag: bool = False
+
+    def write(self, objectfile):
+
+        objectfile.writerow([f"{self.file}", f"{self.apix}", f"{self.rmax}",
+                             f"{self.sky}", f"{self.sky_err}", f"{self.A[0]}",
+                             f"{self.A[1]}", f"{self.As[0]}", f"{self.As90[0]}",
+                             f"{self.time}", f"{self.star_flag}"])
 
 
 class _Error(Exception):
@@ -100,6 +135,133 @@ def getLocation(args):
         outfolder.mkdir()
 
     return curfolder, outfolder
+
+
+def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
+                   occludedsaveFile="occluded-object-locations.csv"):
+    '''
+    Calculates various morphological parameters of galaxies from an image.
+
+    Parameters
+    ----------
+
+    files: List[str] or List[Pathobjects] or generator object
+        files to iterate over
+    outfolder: Path object or str
+        path to folder where data from analysis will be saved
+    args: argpare object
+        cmd line arguments
+    paramsaveFile: str or Path object
+        name of file where calculated files are to be written
+    occludedsaveFile: str or Path object
+        name of file where objects that occlude the object of interest are saved
+
+    Returns
+    -------
+
+    '''
+
+    # suppress warnings about unrecognised keywords
+    warnings.simplefilter('ignore', category=AstropyWarning)
+
+    outfile = outfolder / paramsaveFile
+    csvfile = open(outfile, mode="w")
+    paramwriter = csv.writer(csvfile, delimiter=",")
+    paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
+                          "As", "As90", "time", "star_flag"])
+
+    if args.catalogue:
+        outfile = outfolder / occludedsaveFile
+        objcsvfile = open(outfile, mode="w")
+        objwriter = csv.writer(objcsvfile, delimiter=",")
+        objwriter.writerow(["file", "ra", "dec", "type"])
+
+    for file in files:
+
+        try:
+            img, header, imgsize = checkFile(file)
+        except IOError:
+            print(f"File {file}, does not exist!")
+            continue
+        except AttributeError as e:
+            continue
+
+        # set default values for calculated parameters
+        newResult = Result(file)
+
+        s = time.time()
+
+        print(file)
+
+        # get sky background value and error
+        try:
+            newResult.sky, newResult.sky_err = skybgr(img, imgsize, file, args)
+        except AttributeError:
+            newResult.write(paramwriter)
+            filename = file.name
+            filename = "pixelmap_" + filename
+            outfile = outfolder / filename
+            hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
+            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
+            print(" ")
+            continue
+
+        mask = pixelmap(img, newResult.sky + newResult.sky_err, 3)
+
+        if args.catalogue:
+            newResult.star_flag, objlist = objectOccluded(mask, file.name, args.catalogue, header, galaxy=True, cosmicray=True, unknown=True)
+            if newResult.star_flag:
+                for i, obj in enumerate(objlist):
+                    if i == 0:
+                        objwriter.writerow([f"{file}", obj[0], obj[1], obj[2]])
+                    else:
+                        objwriter.writerow(["", obj[0], obj[1], obj[2]])
+
+        img -= newResult.sky
+
+        # clean image of external sources
+        img = maskstarsSEG(img)
+
+        if args.savecleanimg:
+            filename = file.name
+            filename = "clean_" + filename
+            outfile = outfolder / filename
+            hdu = fits.PrimaryHDU(data=img, header=header)
+            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
+
+        if args.savepixmap:
+            filename = file.name
+            filename = "pixelmap_" + filename
+            outfile = outfolder / filename
+            hdu = fits.PrimaryHDU(data=mask, header=header)
+            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
+
+        objectpix = np.nonzero(mask == 1)
+        cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
+
+        distarray = distarr(imgsize, imgsize, cenpix)
+        objectdist = distarray[objectpix]
+        newResult.rmax = np.max(objectdist)
+        aperturepixmap = aperpixmap(imgsize, newResult.rmax, 9, 0.1)
+
+        newResult.apix = minapix(img, mask, aperturepixmap)
+        angle = 180.
+
+        if args.A or args.Aall:
+            newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, noisecorrect=True)
+
+        if args.As or args.Aall:
+            newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle)
+            newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, 90.)
+
+        f = time.time()
+        timetaken = f - s
+        newResult.time = timetaken
+        newResult.write(paramwriter)
+
+    if args.catalogue:
+        objcsvfile.close()
+    csvfile.close()
 
 
 def prepareimage(img: np.ndarray):

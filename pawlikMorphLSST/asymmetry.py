@@ -13,7 +13,7 @@ def minapix(img: np.ndarray, mask: np.ndarray, apermask: np.ndarray) -> List[int
     """Funciton that finds the minimum asymmetry central pixel within the
        objects pixels of a given image.
        Selects a range of cnadidate centroids within the brightest region that
-       comprimises og 20% of the total flux within object.
+       comprimises of 20% of the total flux within object.
        Then measures the asymmetry of the image under rotation around that
        centroid.
        Then picks the centroid that yields the minimum A value.
