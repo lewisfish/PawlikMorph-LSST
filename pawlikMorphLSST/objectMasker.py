@@ -24,6 +24,7 @@ def objectOccluded(mask: np.ndarray, name: str, catalogue: str, header,
         Name of file to get ra, dec from
     catalogue: str
         Name of object catalogue to check against
+        Expected format is objID: float, ra: float, dec: float, type: str
     header: ?
         fits image header
     galaxy: bool, optional
@@ -31,13 +32,13 @@ def objectOccluded(mask: np.ndarray, name: str, catalogue: str, header,
     cosmicray: bool, optional
         Option to include cosmic rays
     unknown: bool, optional
-        Option to include unkown objects
+        Option to include unknown objects
 
     Returns
     -------
     Tuple[bool, List[float]]
-        Returns true alongside list of objects that occulde object mask.
-        Otherwise returns flase and an empty list
+        Returns true alongside list of objects that occlude object mask.
+        Otherwise returns false and an empty list
     '''
 
     ra = float(re.search(r"\d{2,3}\.\d{3,}", name).group())

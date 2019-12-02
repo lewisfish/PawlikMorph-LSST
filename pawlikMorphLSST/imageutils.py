@@ -2,15 +2,13 @@ from pathlib import Path as _Path
 from typing import List, Tuple
 
 import numpy as np
-from astropy import wcs
-from astropy import units
 from astropy.convolution import Gaussian2DKernel
-from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from astropy.nddata import Cutout2D
 from astropy.modeling import models, fitting
+from astropy.coordinates import SkyCoord
 from astropy.stats import gaussian_fwhm_to_sigma, sigma_clipped_stats
-from photutils import CircularAperture, detect_threshold, detect_sources, IRAFStarFinder
+from astropy import wcs
+from photutils import detect_threshold, detect_sources, CircularAperture
 from scipy import ndimage
 from scipy import optimize
 
@@ -18,10 +16,11 @@ from .apertures import distarr
 from .gaussfitter import twodgaussian, moments
 
 
-__all__ = ["skybgr", "cleanimg", "maskstarsfinder", "maskstarsSEG"]
+__all__ = ["skybgr", "cleanimg", "maskstarsSEG", "maskstarsPSF"]
 
 
 class _Error(Exception):
+    '''Base class for custom exceptions'''
     pass
 
 
@@ -410,26 +409,74 @@ def maskstarsSEG(img):
     return imgclean
 
 
-def maskstarsfinder(img):
+def circle_mask(shape, centre, radius):
+    """
+    Return a boolean mask for a circular sector. The start/stop angles in
+    `angle_range` should be given in clockwise order.
+    """
 
-    cenpix = np.array([int(img.shape[0]/2) + 1, int(img.shape[1]/2) + 1])
-    mean, median, std = sigma_clipped_stats(img, sigma=3.)
+    x, y = np.ogrid[:shape[0], :shape[1]]
+    cx, cy = centre
 
-    imgclean = np.copy(img)
-    daofind = IRAFStarFinder(fwhm=2.0, threshold=5.*std)
-    sources = daofind(img - median)
-    imgclean = np.copy(img)
+    # convert cartesian --> polar coordinates
+    r2 = (x-cx)*(x-cx) + (y-cy)*(y-cy)
+    theta = np.arctan2(x-cx, y-cy)
 
-    if sources is None:
-        return imgclean
+    # wrap angles between 0 and 2*pi
+    theta %= (2*np.pi)
 
-    positions = np.transpose((sources['xcentroid'], sources['ycentroid']))
-    for i in range(0, positions.shape[0]):
-        if abs(positions[i][1] - cenpix[1]) > 10 and abs(positions[i][0] - cenpix[0]) > 10:
-            apertures = CircularAperture(positions[i], r=2.2*sources[i]["fwhm"])
-            mask = apertures.to_mask(method="center").to_image(img.shape)
+    # circular mask
+    circmask = r2 <= radius*radius
+    print(cx, cy)
+    # angular mask
+    anglemask = theta <= 2.*np.pi
 
-            maskvals = mask * np.random.normal(mean, std, size=img.shape)
-            imgclean = np.where(mask == 1., maskvals, imgclean)
+    return circmask*anglemask
 
-    return imgclean
+
+def calcR(counts, psf, sigma):
+    return sigma * np.sqrt(2. * np.log(counts / psf))
+
+
+def maskstarsPSF(img, objs, header, sky):
+
+    s1 = header["PSF_S1"]
+    s2 = header["PSF_S2"]
+    try:
+        bzero = header["BZERO"]
+    except KeyError:
+        bzero = 0
+
+    w = wcs.WCS(header)
+    if len(objs) > 0:
+        mask = np.zeros_like(img)
+    else:
+        mask = np.ones_like(img)
+
+    for obj in objs:
+        pos = SkyCoord(obj[0], obj[1], unit="deg")
+        pixelPos = wcs.utils.skycoord_to_pixel(pos, wcs=w)
+        x, y = pixelPos
+
+        x = round(float(x))
+        y = round(float(y))
+
+        objCount = np.amax(img[y-1:y+1, x-1:x+1])
+        sigma = max(s1, s2)
+
+        radius = calcR(objCount, sky - bzero, sigma)
+        aps = CircularAperture(pixelPos, r=2.4*radius)
+        aperMask = np.zeros_like(img)
+        masks = aps.to_mask(method="subpixel")
+        aperMask = np.where(masks.to_image(img.shape) > 0., 1., 0.)
+        aperMask = ndimage.morphology.binary_dilation(aperMask, border_value=0, iterations=3)
+
+        newMask = circle_mask(mask.shape, (pixelPos[1], pixelPos[0]), 2.4*radius)
+        newMask = ndimage.morphology.binary_dilation(newMask, border_value=0, iterations=3)
+        mask = np.logical_or(mask, newMask)
+        mask = np.logical_or(mask, aperMask)
+
+    if len(objs) > 0:
+        mask = ~mask
+
+    return mask

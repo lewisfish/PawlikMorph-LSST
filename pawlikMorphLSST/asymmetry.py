@@ -9,7 +9,7 @@ from .apertures import apercentre
 __all__ = ["minapix", "calcA"]
 
 
-def minapix(img: np.ndarray, mask: np.ndarray, apermask: np.ndarray) -> List[int]:
+def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray, starMask: np.ndarray) -> List[int]:
     """Funciton that finds the minimum asymmetry central pixel within the
        objects pixels of a given image.
        Selects a range of cnadidate centroids within the brightest region that
@@ -22,97 +22,64 @@ def minapix(img: np.ndarray, mask: np.ndarray, apermask: np.ndarray) -> List[int
     Parameters
     ----------
 
-    img : np.ndarray
+    image : np.ndarray
         Image that the minimum asymmetry pixel is to be found in.
     mask : np.ndarray
         Precomputed mask that describes where the object of interest is in the
         image
     apermask : np.ndarray
-        Precomuted aperture mask
+        Precomputed aperture mask
+    starMask : np.ndarray
+        Precomputed mask that masks stars that interfere with object measurement
 
     Returns
     -------
 
     Centroid : List[int]
-        The minimum asymmetery pixel position.
+        The minimum asymmetry pixel position.
     """
 
-    npix = img.shape[0]
-    cenpix = np.array([int(npix / 2) + 1, int(npix / 2) + 1])
+    imageMask = image * mask * starMask
+    TWENTYPERCENTFLUX = 0.2
 
-    imgravel = np.ravel(img)
-    tmpmaskravel = np.ravel(img * mask)
-    if np.sum(tmpmaskravel) == 0:
-        return [0, 0]
+    twentyPercentFlux = TWENTYPERCENTFLUX * np.sum(imageMask)
+    imageMaskRavel = np.ravel(imageMask)
+    sortedImageMask = np.sort(imageMaskRavel)[::-1]
+    sortedIndices = np.argsort(imageMaskRavel)[::-1]
 
-    sortedind = np.argsort(tmpmaskravel)[::-1]
-    ipix = tmpmaskravel[sortedind]
-
-    itotal = np.sum(ipix)
-    ii = 0
-    isum = 0
     count = 0
-
-    while ii < npix**2:
-        if ipix[ii] > 0:
+    fluxSum = 0
+    centroidCandidates = []
+    for j, pixel in enumerate(sortedImageMask):
+        x, y = np.unravel_index(sortedIndices[j], shape=image.shape)
+        if pixel > 0:
             count += 1
-            isum += ipix[ii]
-        if isum >= 0.2*itotal:
-            ii = npix*npix
-        ii += 1
+            fluxSum += pixel
+            centroidCandidates.append([x, y])
+        if fluxSum >= twentyPercentFlux:
+            break
 
-    ii = 0
-    jj = 0
-    regionpix = np.zeros(count)
-    regionpix_x = np.zeros(count)
-    regionpix_y = np.zeros(count)
+    imageRavel = np.ravel(image)
+    a = np.zeros(count)
 
-    isum = 0
+    for i, point in enumerate(centroidCandidates):
+        imageRotate = transform.rotate(image, 180., center=point, preserve_range=True)
+        imageResidual = np.abs(image - imageRotate)
+        imageResidualRavel = np.ravel(imageResidual)
 
-    while ii < count:
-        if ipix[ii] > 0:
-            regionpix[jj] = sortedind[ii]
+        regionMask = apercentre(apermask, [point[1], point[0]])
+        regionIndicies = np.nonzero(np.ravel(regionMask) == 1)[0]
+        region = imageRavel[regionIndicies]
+        regionResidual = imageResidualRavel[regionIndicies]
 
-            regionpix_2d = np.unravel_index(sortedind[ii], shape=(npix, npix))
+        regionMask *= 0
 
-            regionpix_x[jj] = regionpix_2d[1]
-            regionpix_y[jj] = regionpix_2d[0]
+        a[i] = np.sum(regionResidual) / (2. * np.sum(np.abs(region)))
 
-            isum += ipix[ii]
-            jj += 1
-        if isum >= 0.2*itotal:
-            ii = count
-        ii += 1
+    aMinimum = np.min(a)
+    aMinimumIndex = np.argmin(a)
 
-    regionpix_x = regionpix_x[0:count]
-    regionpix_y = regionpix_y[0:count]
-    a = np.zeros_like(regionpix)
-
-    for i in range(0, regionpix.shape[0]):
-
-        cenpix_x = int(regionpix_x[i])
-        cenpix_y = int(regionpix_y[i])
-
-        imgRot = transform.rotate(img, 180., center=(cenpix_y, cenpix_x), preserve_range=True)
-        imgResid = np.abs(img - imgRot)
-        imgResidravel = np.ravel(imgResid)
-
-        regionmask = apercentre(apermask, [cenpix_y, cenpix_x])
-        regionind = np.nonzero(np.ravel(regionmask) == 1)[0]
-        region = imgravel[regionind]
-        regionResid = imgResidravel[regionind]
-
-        regionmask *= 0
-
-        a[i] = np.sum(regionResid) / (2. * np.sum(np.abs(region)))
-
-    a_min = np.min(a)
-    sub = np.argmin(a)
-
-    centroid_ind = int(regionpix[sub])
-    centroid = np.unravel_index(centroid_ind, shape=(npix, npix))
-
-    return centroid
+    return centroidCandidates[aMinimumIndex]
 
 
 def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,

@@ -15,6 +15,7 @@ from .apertures import aperpixmap
 from .apertures import distarr
 from .asymmetry import calcA
 from .asymmetry import minapix
+from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
 from .imageutils import skybgr
 from .objectMasker import objectOccluded
@@ -97,6 +98,7 @@ def getFiles(args):
     '''
 
     if args.folder:
+        # Get all relevant files in folder
         return Path(args.folder).glob(f"{args.imgsource}cutout*.fits")
     else:
         # just single file so place in a generator manually
@@ -176,6 +178,8 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
         objwriter = csv.writer(objcsvfile, delimiter=",")
         objwriter.writerow(["file", "ra", "dec", "type"])
 
+    results = []
+
     for file in files:
 
         try:
@@ -209,13 +213,15 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
         mask = pixelmap(img, newResult.sky + newResult.sky_err, 3)
 
         if args.catalogue:
-            newResult.star_flag, objlist = objectOccluded(mask, file.name, args.catalogue, header, galaxy=True, cosmicray=True, unknown=True)
+            newResult.star_flag, objlist = objectOccluded(mask, file.name, args.catalogue, header)
             if newResult.star_flag:
                 for i, obj in enumerate(objlist):
                     if i == 0:
                         objwriter.writerow([f"{file}", obj[0], obj[1], obj[2]])
                     else:
                         objwriter.writerow(["", obj[0], obj[1], obj[2]])
+
+        starMask = maskstarsPSF(img, objlist, header, newResult.sky)
 
         img -= newResult.sky
 
@@ -244,7 +250,7 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
         newResult.rmax = np.max(objectdist)
         aperturepixmap = aperpixmap(imgsize, newResult.rmax, 9, 0.1)
 
-        newResult.apix = minapix(img, mask, aperturepixmap)
+        newResult.apix = minapix(img, mask, aperturepixmap, starMask)
         angle = 180.
 
         if args.A or args.Aall:
@@ -258,10 +264,12 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
         timetaken = f - s
         newResult.time = timetaken
         newResult.write(paramwriter)
+        results.append(newResult)
 
     if args.catalogue:
         objcsvfile.close()
     csvfile.close()
+    return results
 
 
 def prepareimage(img: np.ndarray):

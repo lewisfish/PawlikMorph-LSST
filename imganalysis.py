@@ -1,8 +1,7 @@
 if __name__ == '__main__':
     from argparse import ArgumentParser
-    from pathlib import Path
 
-    from pawlikMorphLSST import helpers
+    from pawlikMorphLSST import helpers, diagnostic
 
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
@@ -31,4 +30,8 @@ if __name__ == '__main__':
 
     files = helpers.getFiles(args)
     curfolder, outfolder = helpers.getLocation(args)
-    helpers.calcMorphology(files, outfolder, args)
+    results = helpers.calcMorphology(files, outfolder, args)
+    print(" ")
+    for i in results:
+        print(i.file)
+        diagnostic.make_figure(i)

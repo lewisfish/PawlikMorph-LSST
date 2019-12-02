@@ -29,11 +29,6 @@ def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
 
     '''
 
-    # TODO. move somewhere else?
-    if img.shape[0] != img.shape[1]:
-        print("ERROR! image must be square")
-        sys.exit()
-
     if filtsize % 2 == 0:
         print("ERROR! Filter can not be of even size.")
         sys.exit()
