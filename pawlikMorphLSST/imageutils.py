@@ -410,10 +410,7 @@ def maskstarsSEG(img):
 
 
 def circle_mask(shape, centre, radius):
-    """
-    Return a boolean mask for a circular sector. The start/stop angles in
-    `angle_range` should be given in clockwise order.
-    """
+    '''Return a boolean mask for a circle.'''
 
     x, y = np.ogrid[:shape[0], :shape[1]]
     cx, cy = centre
@@ -427,7 +424,7 @@ def circle_mask(shape, centre, radius):
 
     # circular mask
     circmask = r2 <= radius*radius
-    print(cx, cy)
+
     # angular mask
     anglemask = theta <= 2.*np.pi
 

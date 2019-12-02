@@ -254,7 +254,7 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
         angle = 180.
 
         if args.A or args.Aall:
-            newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, noisecorrect=True)
+            newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
 
         if args.As or args.Aall:
             newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle)

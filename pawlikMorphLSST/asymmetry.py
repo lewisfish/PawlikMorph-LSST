@@ -83,9 +83,9 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray, starMask:
 
 
 def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
-          centroid: List[int], angle: float, apermaskcut=None,
+          centroid: List[int], angle: float, starMask: np.ndarray,
           noisecorrect=False) -> List[float]:
-    """Function to calculate A, the asymmetery parameter. Near direct
+    """Function to calculate A, the asymmetry parameter. Near direct
        translation of IDL code.
 
     Parameters
@@ -98,7 +98,7 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
         Mask that covers object of interest.
 
     apermask : np.ndarray
-        Array of the aperature mask image.
+        Array of the aperture mask image.
 
     centroid : np.ndarray
         Pixel position of the centroid to be used for rotation.
@@ -106,7 +106,8 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
     angle : float
         Angle to rotate object, in degrees.
 
-    apermaskcut : np.ndarray, optional
+    starMask : np.ndarray
+        Precomputed mask that masks stars that interfere with object measurement
 
     noisecorrect : bool, optional
         Default value False. If true corrects for background noise
@@ -115,24 +116,29 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
     -------
 
     A, Abgr : List(float)
-        Returns the asymmetery value and its background value.
+        Returns the asymmetry value and its background value.
 
     """
 
     cenpix_x = centroid[0]
     cenpix_y = centroid[1]
 
+    # cast to float so that rotate is happy
+    starMask = starMask.astype(np.float64)
+    # rotate the star mask angle degrees, so that star does not interfere
+    # with measurement
+    starMask *= transform.rotate(starMask, angle, center=(cenpix_x, cenpix_y),
+                              preserve_range=True, cval=1.)
+
+    # mask image
+    img *= starMask
     imgRot = transform.rotate(img, angle, center=(cenpix_x, cenpix_y),
                               preserve_range=True)
+
     imgResid = np.abs(img - imgRot)
     imgravel = np.ravel(img)
 
-    if apermaskcut is None:
-        netmask = apermask
-    else:
-        # TODO: implement
-        print("ERROR! Not yet implmented!")
-        sys.exit()
+    netmask = apermask
 
     imgResidravel = np.ravel(imgResid)
     regionind = np.nonzero(np.ravel(netmask) == 1)[0]
@@ -149,6 +155,8 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
         bgrimg = np.ravel(bgrimg)
         element = np.ones((9, 9))
 
+        # mask pixel map
+        pixmap *= starMask
         mask = ndimage.morphology.binary_dilation(pixmap, structure=element)
         maskind = np.nonzero(np.ravel(mask) == 1)[0]
         bgrind = np.nonzero(np.ravel(mask) != 1)[0]
