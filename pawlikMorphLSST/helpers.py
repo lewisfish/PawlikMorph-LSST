@@ -189,7 +189,7 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
             continue
         except AttributeError as e:
             continue
-
+        img = img.astype(np.float64)
         # set default values for calculated parameters
         newResult = Result(file)
 

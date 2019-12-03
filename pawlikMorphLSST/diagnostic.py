@@ -59,7 +59,7 @@ def _getStarsOccludObject(file, header):
                 break
 
     except ValueError:
-        pass
+        return occludingStars
 
     return occludingStars
 

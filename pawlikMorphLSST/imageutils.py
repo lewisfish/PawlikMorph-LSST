@@ -443,14 +443,12 @@ def maskstarsPSF(img, objs, header, skyCount):
     aa = header["PHT_AA"]
     kk = header["PHT_KK"]
     airmass = header["AIRMASS"]
-    skyCount = header["SKY"]
+    softwareBias = header["SOFTBIAS"]
 
+    skyCount -= softwareBias
     fact = 0.4*(aa + kk*airmass)
-
-    try:
-        bzero = header["BZERO"]
-    except KeyError:
-        bzero = 0
+    skyFluxRatio = ((skyCount) / exptime) * 10**(fact)
+    skyMag = -2.5 * np.log10(skyFluxRatio)
 
     w = wcs.WCS(header)
     if len(objs) > 0:
@@ -470,7 +468,7 @@ def maskstarsPSF(img, objs, header, skyCount):
         # objectFluxRatio = (objectCount / exptime) * 10**(fact)
         objectMag = obj[3]#-2.5 * np.log10(objectFluxRatio)
 
-        skyFluxRatio = ((skyCount - bzero) / exptime) * 10**(fact)
+        skyFluxRatio = ((skyCount) / exptime) * 10**(fact)
         skyMag = -2.5 * np.log10(skyFluxRatio)
 
         sigma = max(s1, s2)
