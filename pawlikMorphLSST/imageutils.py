@@ -431,14 +431,22 @@ def circle_mask(shape, centre, radius):
     return circmask*anglemask
 
 
-def calcR(counts, psf, sigma):
+def calcR(psf, counts, sigma):
     return sigma * np.sqrt(2. * np.log(counts / psf))
 
 
-def maskstarsPSF(img, objs, header, sky):
+def maskstarsPSF(img, objs, header, skyCount):
 
     s1 = header["PSF_S1"]
     s2 = header["PSF_S2"]
+    exptime = header["EXPTIME"]
+    aa = header["PHT_AA"]
+    kk = header["PHT_KK"]
+    airmass = header["AIRMASS"]
+    skyCount = header["SKY"]
+
+    fact = 0.4*(aa + kk*airmass)
+
     try:
         bzero = header["BZERO"]
     except KeyError:
@@ -458,18 +466,24 @@ def maskstarsPSF(img, objs, header, sky):
         x = round(float(x))
         y = round(float(y))
 
-        objCount = np.amax(img[y-1:y+1, x-1:x+1])
-        sigma = max(s1, s2)
+        # objectCount = np.amax(img[y-1:y+1, x-1:x+1])
+        # objectFluxRatio = (objectCount / exptime) * 10**(fact)
+        objectMag = obj[3]#-2.5 * np.log10(objectFluxRatio)
 
-        radius = calcR(objCount, sky - bzero, sigma)
-        aps = CircularAperture(pixelPos, r=2.4*radius)
+        skyFluxRatio = ((skyCount - bzero) / exptime) * 10**(fact)
+        skyMag = -2.5 * np.log10(skyFluxRatio)
+
+        sigma = max(s1, s2)
+        radius = calcR(objectMag, skyMag, sigma)
+
+        aps = CircularAperture(pixelPos, r=5*radius)
         aperMask = np.zeros_like(img)
         masks = aps.to_mask(method="subpixel")
         aperMask = np.where(masks.to_image(img.shape) > 0., 1., 0.)
-        aperMask = ndimage.morphology.binary_dilation(aperMask, border_value=0, iterations=3)
+        # aperMask = ndimage.morphology.binary_dilation(aperMask, border_value=0, iterations=3)
 
-        newMask = circle_mask(mask.shape, (pixelPos[1], pixelPos[0]), 2.4*radius)
-        newMask = ndimage.morphology.binary_dilation(newMask, border_value=0, iterations=3)
+        newMask = circle_mask(mask.shape, (pixelPos[1], pixelPos[0]), 5.*radius)
+        # newMask = ndimage.morphology.binary_dilation(newMask, border_value=0, iterations=3)
         mask = np.logical_or(mask, newMask)
         mask = np.logical_or(mask, aperMask)
 

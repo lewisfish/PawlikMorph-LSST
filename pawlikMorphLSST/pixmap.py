@@ -7,51 +7,59 @@ from skimage import transform
 __all__ = ["pixelmap"]
 
 
-def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
-    # from matplotlib import animation
+def pixelmap(image: np.ndarray, threshold: float, filterSize: int,
+             starMask=None) -> np.ndarray:
     ''' Calculates an object binary mask using a mean filter and 8 connected
         pixels and a given threshold.
 
     Parameters
     ----------
 
-    img : np.ndarray
+    image : np.ndarray
         Image from which the binary mask is calculated.
-    thres : float
+    threshold : float
         Threshold for calculating 8 connectedness
-    filtsize : int
+    filterSize : int
         Size of the mean filter. Must be odd
+    starMask : optional, None or np.ndarray
+        Mask that mask out nuisance stars
 
     Returns
     -------
-    objmask : np.ndrray
+    objectMask : np.ndrray
         Calculated binary object mask
 
     '''
 
-    if filtsize % 2 == 0:
+    if starMask is None:
+        starMask = np.full(image.shape, True)
+    imageTmp = image * starMask
+
+    if filterSize % 2 == 0:
         print("ERROR! Filter can not be of even size.")
         sys.exit()
 
-    imgsize = img.shape[0]
+    imgsize = imageTmp.shape[0]
 
     # mean filter
-    img = ndimage.uniform_filter(img, size=filtsize, mode="reflect")
+    imageTmp = ndimage.uniform_filter(imageTmp, size=filterSize,
+                                      mode="reflect")
     # resize image to match PawlikMorph
     # TODO leave this as an option?
-    img = transform.resize(img, (int(imgsize / filtsize), int(imgsize / filtsize)),
-                           anti_aliasing=False, preserve_range=True)
+    imageTmp = transform.resize(imageTmp, (int(imgsize / filterSize),
+                                int(imgsize / filterSize)),
+                                anti_aliasing=False, preserve_range=True)
 
-    npix = img.shape[0]
+    npix = imageTmp.shape[0]
     cenpix = np.array([int(npix/2), int(npix/2)])
-    if img[cenpix[0], cenpix[1]] < thres:
+    if imageTmp[cenpix[0], cenpix[1]] < threshold:
         print("ERROR! Central pixel too faint")
         # sys.exit()
 
     # output binary image array
-    objmask = np.zeros_like(img)
+    objectMask = np.zeros_like(imageTmp)
     # set central pixel as this is always included
-    objmask[cenpix[0], cenpix[1]] = 1
+    objectMask[cenpix[0], cenpix[1]] = 1
 
     # start list with central pixel
     pixels = [cenpix]
@@ -72,13 +80,14 @@ def pixelmap(img: np.ndarray, thres: float, filtsize: int) -> np.ndarray:
             ycur += yvec[i]
             if xcur >= npix or ycur >= npix or xcur < 0 or ycur < 0:
                 continue
-            if img[xcur, ycur] > thres and objmask[xcur, ycur] == 0:
-                objmask[xcur, ycur] = 1
+            if imageTmp[xcur, ycur] > threshold and objectMask[xcur, ycur] == 0:
+                objectMask[xcur, ycur] = 1
                 pixels.append([xcur, ycur])
         if len(pixels) == 0:
             pixelsleft = False
             break
 
     # resize binary image to original size
-    objmask = transform.resize(objmask, (imgsize, imgsize), order=0, mode="edge")
-    return objmask
+    objectMask = transform.resize(objectMask, (imgsize, imgsize), order=0,
+                                  mode="edge")
+    return objectMask

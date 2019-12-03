@@ -9,11 +9,12 @@ from .apertures import apercentre
 __all__ = ["minapix", "calcA"]
 
 
-def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray, starMask: np.ndarray) -> List[int]:
-    """Funciton that finds the minimum asymmetry central pixel within the
+def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
+            starMask: np.ndarray) -> List[int]:
+    """Function that finds the minimum asymmetry central pixel within the
        objects pixels of a given image.
-       Selects a range of cnadidate centroids within the brightest region that
-       comprimises of 20% of the total flux within object.
+       Selects a range of candidate centroids within the brightest region that
+       compromises of 20% of the total flux within object.
        Then measures the asymmetry of the image under rotation around that
        centroid.
        Then picks the centroid that yields the minimum A value.
@@ -30,7 +31,8 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray, starMask:
     apermask : np.ndarray
         Precomputed aperture mask
     starMask : np.ndarray
-        Precomputed mask that masks stars that interfere with object measurement
+        Precomputed mask that masks stars that interfere with object
+        measurement
 
     Returns
     -------
@@ -55,7 +57,7 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray, starMask:
         if pixel > 0:
             count += 1
             fluxSum += pixel
-            centroidCandidates.append([x, y])
+            centroidCandidates.append([y, x])
         if fluxSum >= twentyPercentFlux:
             break
 
@@ -67,7 +69,7 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray, starMask:
         imageResidual = np.abs(image - imageRotate)
         imageResidualRavel = np.ravel(imageResidual)
 
-        regionMask = apercentre(apermask, [point[1], point[0]])
+        regionMask = apercentre(apermask, point)
         regionIndicies = np.nonzero(np.ravel(regionMask) == 1)[0]
         region = imageRavel[regionIndicies]
         regionResidual = imageResidualRavel[regionIndicies]
@@ -128,7 +130,7 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
     # rotate the star mask angle degrees, so that star does not interfere
     # with measurement
     starMask *= transform.rotate(starMask, angle, center=(cenpix_x, cenpix_y),
-                              preserve_range=True, cval=1.)
+                                 preserve_range=True, cval=1.)
 
     # mask image
     img *= starMask

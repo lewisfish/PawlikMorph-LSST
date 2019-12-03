@@ -210,10 +210,10 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
             print(" ")
             continue
 
-        mask = pixelmap(img, newResult.sky + newResult.sky_err, 3)
-
+        tmpmask = pixelmap(img, newResult.sky + newResult.sky_err, 3)
+        objlist = []
         if args.catalogue:
-            newResult.star_flag, objlist = objectOccluded(mask, file.name, args.catalogue, header)
+            newResult.star_flag, objlist = objectOccluded(tmpmask, file.name, args.catalogue, header)
             if newResult.star_flag:
                 for i, obj in enumerate(objlist):
                     if i == 0:
@@ -222,6 +222,7 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
                         objwriter.writerow(["", obj[0], obj[1], obj[2]])
 
         starMask = maskstarsPSF(img, objlist, header, newResult.sky)
+        mask = pixelmap(img, newResult.sky + newResult.sky_err, 3, starMask)
 
         img -= newResult.sky
 
@@ -257,8 +258,8 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
             newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
 
         if args.As or args.Aall:
-            newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle)
-            newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, 90.)
+            newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
+            newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, 90., starMask)
 
         f = time.time()
         timetaken = f - s

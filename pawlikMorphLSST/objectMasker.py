@@ -1,4 +1,5 @@
 import re
+import sys
 from typing import Tuple, List
 
 import numpy as np
@@ -94,7 +95,7 @@ def _findStars(catalogue: str, ra: float, dec: float,
     '''
 
     # read in catalogue of nearby objects
-    df = pd.read_csv(catalogue, dtype={"objID": "float", "ra": "float", "dec": "float", "type": "str"})
+    df = pd.read_csv(catalogue, dtype={"objID": "float", "ra": "float", "dec": "float", "psfMag_r": "float", "type": "str"})
 
     am = size
 
@@ -105,9 +106,14 @@ def _findStars(catalogue: str, ra: float, dec: float,
     ymax = dec + am
 
     # split up objects
-    stars = df.loc[df['type'] == "STAR"]
-    ras = list(stars["ra"])
-    decs = list(stars["dec"])
+    try:
+        stars = df.loc[df['type'] == "STAR"]
+        ras = list(stars["ra"])
+        decs = list(stars["dec"])
+        psfMags = list(stars["psfMag_r"])
+    except KeyError:
+        print("Supplied catalogue has wrong format. Expected: objId, RA, DEC, psfMag_r, type")
+        sys.exit()
     types = ["STAR" for i in range(0, len(ras))]
 
     if galaxy:
@@ -134,12 +140,13 @@ def _findStars(catalogue: str, ra: float, dec: float,
         decs += decu
         types += ["UNKNOWN" for i in range(0, len(ras))]
 
-    objs = _getObject(ras, decs, types, xmin, xmax, ymin, ymax)
+    objs = _getObject(ras, decs, psfMags, types, xmin, xmax, ymin, ymax)
     return objs
 
 
-def _getObject(ra: List[float], dec: List[float], types: List[str], xmin: float, xmax: float,
-              ymin: float, ymax: float) -> List[float]:
+def _getObject(ra: List[float], dec: List[float], psfMags: List[float],
+               types: List[str], xmin: float, xmax: float,
+               ymin: float, ymax: float) -> List[float]:
 
     '''Function that check that objects is nearby object of interest.
 
@@ -169,9 +176,9 @@ def _getObject(ra: List[float], dec: List[float], types: List[str], xmin: float,
     '''
 
     pos = []
-    for i, j, k in zip(ra, dec, types):
+    for i, j, k, p in zip(ra, dec, types, psfMags):
         if i > xmin and i < xmax:
             if j > ymin and j < ymax:
-                pos.append([i, j, k])
+                pos.append([i, j, k, p])
 
     return pos
