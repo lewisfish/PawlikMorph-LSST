@@ -21,11 +21,8 @@ Replicates the ability to prepare images, generate object binary masks and calcu
  - -cc, Check if any object in the provided catalogue occludes the analysed object
  
  Example
-  - ./imganalysis.py -f sample/sdsscutout_211.51-0.31_rband.fits -Aall -spm -sci -src sdss
-
-### Alternative
-
-See the provided [notebook](https://github.com/lewisfish/PawlikMorph-LSST/blob/master/tutorial.ipynb)
+  - ./imganalysis.py -fo sample/data -Aall -spm -sci -src sdss -li
+  - This will generate a folder sample/output where pixelmaps of the object, clean images, and calculated parameters are stored.
 
 ## Installation
 
