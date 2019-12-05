@@ -16,7 +16,7 @@ from .apertures import distarr
 from .gaussfitter import twodgaussian, moments
 
 
-__all__ = ["skybgr", "cleanimg", "maskstarsSEG", "maskstarsPSF"]
+__all__ = ["skybgr", "maskstarsSEG", "maskstarsPSF"]
 
 
 class _Error(Exception):
@@ -203,7 +203,7 @@ def _gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
     y = np.linspace(0, imgsize-1, imgsize)
     X, Y = np.meshgrid(x, y)
 
-    # guess intital parameters from calculation of moments
+    # guess initial parameters from calculation of moments
     initial_guess = moments(img)
 
     # convert image to 1D array for fitting purposes
@@ -215,10 +215,10 @@ def _gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
     return np.abs(popt)
 
 
-def _altgauss2dfit(img: np.ndarray, imgsize: float) -> models:
+def _altgauss2dfit(image: np.ndarray, imgsize: float) -> models:
     '''Alternative slower but more robust Gaussian fitter.
 
-    img : np.ndarray
+    image : np.ndarray
         Image array to be fitted to.
     imgsize : int
         Size of image in x and y directions.
@@ -231,186 +231,119 @@ def _altgauss2dfit(img: np.ndarray, imgsize: float) -> models:
 
     '''
 
-    imgold = np.copy(img)
+    imageOld = np.copy(image)
 
     fit_w = fitting.LevMarLSQFitter()
 
-    total = np.abs(imgold).sum()
-    Y, X = np.indices(imgold.shape)  # python convention: reverse x,y np.indices
-    mean = np.mean(imgold)
+    total = np.abs(imageOld).sum()
+    Y, X = np.indices(imageOld.shape)  # python convention: reverse x,y np.indices
+    mean = np.mean(imageOld)
     xmid = int(imgsize / 2)
     ymid = int(imgsize / 2)
 
     # Mask out bright pixels not near object centre
     while True:
-        x, y = np.unravel_index(np.argmax(imgold), shape=imgold.shape)
+        x, y = np.unravel_index(np.argmax(imageOld), shape=imageOld.shape)
         if abs(x - xmid) > 20 or abs(y - ymid) > 20:
-            imgold[x, y] = mean
+            imageOld[x, y] = mean
         else:
             break
 
     # subtracting the mean sometimes helps
-    mean = np.mean(imgold)
-    imgold -= mean
+    mean = np.mean(imageOld)
+    imageOld -= mean
 
-    # make intial guess
-    total = np.abs(imgold).sum()
-    y0 = int(img.shape[0] / 2)
-    x0 = int(img.shape[1] / 2)
+    # make initial guess
+    total = np.abs(imageOld).sum()
+    y0 = int(image.shape[0] / 2)
+    x0 = int(image.shape[1] / 2)
 
-    col = imgold[int(y0), :]
+    col = imageOld[int(y0), :]
     sigmax = np.sqrt(np.abs((np.arange(col.size)-y0)**2*col).sum() / np.abs(col).sum())
 
-    row = imgold[:, int(x0)]
+    row = imageOld[:, int(x0)]
     sigmay = np.sqrt(np.abs((np.arange(row.size)-x0)**2*row).sum() / np.abs(row).sum())
 
-    height = np.median(imgold.ravel())
-    amp = imgold.max() - height
+    height = np.median(imageOld.ravel())
+    amp = imageOld.max() - height
     angle = 3.14 / 2.
 
     # fit model
     w = models.Gaussian2D(amp, x0, y0, sigmax, sigmay, angle)
-    yi, xi = np.indices(imgold.shape)
-    g = fit_w(w, xi, yi, imgold)
+    yi, xi = np.indices(imageOld.shape)
+    g = fit_w(w, xi, yi, imageOld)
 
     return g
 
 
-def cleanimg(img: np.ndarray, pixmap: np.ndarray, filter=False) -> np.ndarray:
-    '''Function that cleans the image of non overlapping sources, i.e outside
-       the objects binary pixelmap
-
+def maskstarsSEG(image: np.ndarray):
+    '''Function that cleans image of external sources. Uses segmentation map
+       to achieve this.
 
     Parameters
     ----------
 
-    img : np.ndarray
-        Input image to be cleaned.
-    pixmap : np.ndarray
-        Binary pixelmap of object.
-    filter : bool, optional
-        Flag for whether the output image should be filtered before return.
-        Helps wth "salt and pepper noise"
+    image : np.ndarray
+        Image to be cleaned.
 
     Returns
     -------
 
-    imgclean : np.ndarray
-        Cleaned image.
+    imageClean : np.ndarray
+        Image cleaned of external sources.
 
     '''
 
-    imgsize = img.shape[0]
-    imgravel = img.ravel()
+    cenpix = np.array([int(image.shape[0]/2) + 1, int(image.shape[1]/2) + 1])
+    mean, median, std = sigma_clipped_stats(image, sigma=3.)
 
-    # Dilate pixelmap
-    element = np.ones((9, 9))
-    mask = ndimage.morphology.binary_dilation(pixmap, structure=element)
-
-    skyind = np.nonzero(mask.ravel() != 1)[0]
-
-    # find a threshold for defining sky pixels
-    meansky = np.mean(imgravel[skyind])
-    mediansky = np.median(imgravel[skyind])
-
-    if meansky <= mediansky:
-        thres = meansky
-    else:
-        # begin sigma clip
-        sigmasky = np.std(imgravel[skyind])
-
-        mode_old = 3.*mediansky - 2.*meansky
-        mode_new = 0.0
-        w = 0
-        clipsteps = imgravel.size
-
-        while w < clipsteps:
-
-            skyind = np.nonzero(np.abs(imgravel[skyind] - meansky) < 3.*sigmasky)
-            meansky = np.mean(imgravel[skyind])
-            mediansky = np.median(imgravel[skyind])
-            sigmasky = np.std(imgravel[skyind])
-
-            mode_new = 3.*mediansky - 2.*meansky
-            mode_diff = abs(mode_old - mode_new)
-
-            if mode_diff < 0.01:
-                modesky = mode_new.copy()
-                w = clipsteps
-            else:
-                w += 1
-
-            mode_old = mode_new.copy()
-
-        thres = modesky
-
-    # Mask out sources with random sky pixels
-    # element wise boolean AND
-    skypix = np.nonzero((pixmap.ravel() != 1) & (imgravel > thres))
-
-    skypixels = imgravel[skypix]
-    allpixels = skypixels
-
-    if skypixels.size >= imgravel.size:
-        print("ERROR! No sources detected! Check image and pixel map.")
-    else:
-        pixfrac = imgravel.size / skypixels.size
-        if pixfrac == float(round(pixfrac)):
-            for p in range(1, int(pixfrac)):
-                allpixels = np.append(allpixels, skypixels)
-        else:
-            for p in range(1, int(pixfrac)):
-                allpixels = np.append(allpixels, skypixels)
-            diff = imgravel.shape[0] - allpixels.shape[0]
-            allpixels = np.append(allpixels, skypixels[0:diff])
-
-    # shuffle sky pixels randomly
-    # np.random.seed(0)
-    np.random.shuffle(allpixels)
-
-    imgclean = np.where((pixmap.ravel() != 1) & (imgravel >= thres), allpixels, imgravel)
-    imgclean = imgclean.reshape((imgsize, imgsize))
-
-    # convert imgclean from object dtype to float dtype
-    imgclean[imgclean == None] = 0.
-    imgclean = imgclean.astype(np.float)
-
-    if filter:
-        imgclean = ndimage.uniform_filter(imgclean, size=(3, 3), mode="reflect")
-
-    return imgclean
-
-
-def maskstarsSEG(img):
-
-    cenpix = np.array([int(img.shape[0]/2) + 1, int(img.shape[1]/2) + 1])
-    mean, median, std = sigma_clipped_stats(img, sigma=3.)
-
-    imgclean = np.copy(img)
-    threshold = detect_threshold(img, 1.5)
-    sigma = 3.0 * gaussian_fwhm_to_sigma  # FWHM = 3.
+    # create segmentation map
+    imageClean = np.copy(image)
+    threshold = detect_threshold(image, 1.5)
+    sigma = 3.0 * gaussian_fwhm_to_sigma
     kernel = Gaussian2DKernel(sigma, x_size=3, y_size=3)
     kernel.normalize()
-    segm = detect_sources(img, threshold, npixels=8, filter_kernel=kernel)
+    segm = detect_sources(image, threshold, npixels=8, filter_kernel=kernel)
 
+    # Save potions of segmentation map outwith object of interest
     stars = []
     for i, segment in enumerate(segm.segments):
 
         if not inBbox(segment.bbox.extent, cenpix):
             stars.append(i)
 
+    # clean image of external sources
     for i in stars:
         masked = segm.segments[i].data_ma
         masked = np.where(masked > 0., 1., 0.) * np.random.normal(mean, std, size=segm.segments[i].data.shape)
-        imgclean[segm.segments[i].bbox.slices] = masked
+        imageClean[segm.segments[i].bbox.slices] = masked
 
-        imgclean = np.where(imgclean == 0, img, imgclean)
+        imageClean = np.where(imageClean == 0, image, imageClean)
 
-    return imgclean
+    return imageClean
 
 
-def circle_mask(shape, centre, radius):
-    '''Return a boolean mask for a circle.'''
+def _circle_mask(shape: Tuple[int], centre: Tuple[int], radius: float):
+    '''Return a boolean mask for a circle.
+
+    Parameters
+    ----------
+
+    shape : Tuple[int]
+        Dimensions of image on what to create a circular mask.
+
+    centre : Tuple[int]
+        Centre of where mask should be created.
+
+    radius : float
+        radius of circular mask to be created.
+
+    Returns
+    -------
+
+    Circular mask : np.ndarray
+
+    '''
 
     x, y = np.ogrid[:shape[0], :shape[1]]
     cx, cy = centre
@@ -431,60 +364,87 @@ def circle_mask(shape, centre, radius):
     return circmask*anglemask
 
 
-def calcR(psf, counts, sigma):
+def _calculateRadius(psf, counts, sigma):
     return sigma * np.sqrt(2. * np.log(counts / psf))
 
 
-def maskstarsPSF(img, objs, header, skyCount):
+def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float, 
+                 numSigmas=5.) -> np.ndarray:
+    '''Function that uses the PSF to mask stars.
 
-    s1 = header["PSF_S1"]
-    s2 = header["PSF_S2"]
-    exptime = header["EXPTIME"]
-    aa = header["PHT_AA"]
-    kk = header["PHT_KK"]
-    airmass = header["AIRMASS"]
-    softwareBias = header["SOFTBIAS"]
+    Parameters
+    ----------
+
+    image : np.ndarray
+        Image that is to be masked of nuisance stars.
+
+    objs : List[float, float, str, float]
+        List of objects. [RA, DEC, type, psfMag_r]
+
+    header : astropy.io.fits.header.Header
+        The header of the current image. Contains information on PSF and
+        various other parameters.
+
+    skyCount : float
+        Sky background in counts.
+
+    numSigmas : optional, float
+        Number of sigmas that the stars radius should extend to
+
+    Returns
+    -------
+
+    mask : np.ndarray
+        Array that masks stars on original image.
+
+    '''
+
+    sigma1 = header["PSF_S1"]          # Sigma of Gaussian fit of PSF
+    sigma2 = header["PSF_S2"]          # Sigma of Gaussian fit of PSF
+    expTime = header["EXPTIME"]        # Exposure time of image
+    aa = header["PHT_AA"]              # zero point
+    kk = header["PHT_KK"]              # extinction coefficient
+    airMass = header["AIRMASS"]        # airmass
+    softwareBias = header["SOFTBIAS"]  # software bias added to pixel counts
 
     skyCount -= softwareBias
-    fact = 0.4*(aa + kk*airmass)
-    skyFluxRatio = ((skyCount) / exptime) * 10**(fact)
+
+    # https://classic.sdss.org/dr7/algorithms/fluxcal.html#counts2mag
+    factor = 0.4*(aa + kk*airMass)
+    skyFluxRatio = ((skyCount) / expTime) * 10**(factor)
     skyMag = -2.5 * np.log10(skyFluxRatio)
 
-    w = wcs.WCS(header)
+    wcsFromHeader = wcs.WCS(header)
+
+    # if no objects create empty mask that wont interfere with future calculations
     if len(objs) > 0:
-        mask = np.zeros_like(img)
+        mask = np.zeros_like(image)
     else:
-        mask = np.ones_like(img)
+        mask = np.ones_like(image)
 
     for obj in objs:
+        # convert object RA, DEC to pixels
         pos = SkyCoord(obj[0], obj[1], unit="deg")
-        pixelPos = wcs.utils.skycoord_to_pixel(pos, wcs=w)
+        pixelPos = wcs.utils.skycoord_to_pixel(pos, wcs=wcsFromHeader)
         x, y = pixelPos
 
-        x = round(float(x))
-        y = round(float(y))
+        # get object psfMag_r
+        objectMag = obj[3]
 
-        # objectCount = np.amax(img[y-1:y+1, x-1:x+1])
-        # objectFluxRatio = (objectCount / exptime) * 10**(fact)
-        objectMag = obj[3]#-2.5 * np.log10(objectFluxRatio)
+        # calculate radius of star
+        sigma = max(sigma1, sigma2)
+        radius = numSigmas * _calculateRadius(objectMag, skyMag, sigma)
 
-        skyFluxRatio = ((skyCount) / exptime) * 10**(fact)
-        skyMag = -2.5 * np.log10(skyFluxRatio)
-
-        sigma = max(s1, s2)
-        radius = calcR(objectMag, skyMag, sigma)
-
-        aps = CircularAperture(pixelPos, r=5*radius)
-        aperMask = np.zeros_like(img)
+        # mask out star
+        aps = CircularAperture(pixelPos, r=radius)
         masks = aps.to_mask(method="subpixel")
-        aperMask = np.where(masks.to_image(img.shape) > 0., 1., 0.)
-        # aperMask = ndimage.morphology.binary_dilation(aperMask, border_value=0, iterations=3)
+        aperMask = np.where(masks.to_image(image.shape) > 0., 1., 0.)
 
-        newMask = circle_mask(mask.shape, (pixelPos[1], pixelPos[0]), 5.*radius)
-        # newMask = ndimage.morphology.binary_dilation(newMask, border_value=0, iterations=3)
+        newMask = _circle_mask(mask.shape, (pixelPos[1], pixelPos[0]), radius)
         mask = np.logical_or(mask, newMask)
         mask = np.logical_or(mask, aperMask)
 
+    # invert calculated mask so that future calculations work
     if len(objs) > 0:
         mask = ~mask
 
