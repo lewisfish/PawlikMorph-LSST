@@ -36,7 +36,7 @@ First clone this repo. Then either use pip or conda to install dependencies:
   - conda env create -f enviroment.yml
 
 ## Requirments
- - Python 3.6.5+
+ - Python 3.7+
  - Numpy 1.15.4+
  - Numba 0.38.1+
  - Astropy 3.0.3+
