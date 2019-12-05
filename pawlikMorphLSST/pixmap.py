@@ -52,9 +52,9 @@ def pixelmap(image: np.ndarray, threshold: float, filterSize: int,
 
     npix = imageTmp.shape[0]
     cenpix = np.array([int(npix/2), int(npix/2)])
+
     if imageTmp[cenpix[0], cenpix[1]] < threshold:
         print("ERROR! Central pixel too faint")
-        # sys.exit()
 
     # output binary image array
     objectMask = np.zeros_like(imageTmp)

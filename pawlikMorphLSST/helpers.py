@@ -21,7 +21,7 @@ from .imageutils import skybgr
 from .objectMasker import objectOccluded
 from .pixmap import pixelmap
 
-__all__ = ["checkFile", "getLocation", "prepareimage", "calcMorphology"]
+__all__ = ["checkFile", "getLocation", "calcMorphology"]
 
 
 @dataclass
@@ -298,37 +298,3 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
         objcsvfile.close()
     csvfile.close()
     return results
-
-
-def prepareimage(img: np.ndarray):
-
-    '''Helper function to prepare images
-
-    Parameters
-    ----------
-        img : np.ndarray
-            Image to be prepared.
-
-    Returns
-    -------
-
-    img : np.ndarray
-        Image which has been bgr subtracted and 'cleaned'.
-    mask : np.ndarray
-        Binary image of object.
-
-    '''
-
-    if img.shape[0] != img.shape[1]:
-        print("ERROR! image not square")
-        return
-
-    img = img.byteswap().newbyteorder()
-
-    sky, sky_err, flag = skybgr(img, img.shape[0])
-    mask = pixelmap(img, sky + sky_err, 3)
-    img -= sky
-
-    img = cleanimg(img, mask)
-
-    return img, mask
