@@ -19,6 +19,7 @@ from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
 from .imageutils import skybgr
 from .objectMasker import objectOccluded
+from .sersic import fitSersic
 from .pixmap import pixelmap
 
 __all__ = ["checkFile", "getLocation", "calcMorphology"]
@@ -149,9 +150,9 @@ def getLocation(file=None, folder=None):
 
 
 def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
-                   allAsymmetry=True, savePixelMap=True, saveCleanImage=True,
-                   imageSource=None, catalogue=None, largeImage=False,
-                   paramsaveFile="parameters.csv",
+                   allAsymmetry=True, calculateSersic=False, savePixelMap=True,
+                   saveCleanImage=True, imageSource=None, catalogue=None,
+                   largeImage=False, paramsaveFile="parameters.csv",
                    occludedSaveFile="occluded-object-locations.csv"):
     '''
     Calculates various morphological parameters of galaxies from an image.
@@ -295,6 +296,16 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
         if shapeAsymmetry or allAsymmetry:
             newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
             newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, 90., starMask)
+
+        if calculateSersic:
+            p = fitSersic(img, newResult.apix, newResult.fwhms, newResult.theta)
+            newResult.sersic_amplitude = p.amplitude
+            newResult.sersic_r_eff = p.r_eff
+            newResult.sersic_ellip = p.ellip
+            newResult.sersic_n = p.n
+            newResult.sersic_theta = p.theta
+            newResult.x_0 = p.x_0
+            newResult.y_0 = p.y_0
 
         f = time.time()
         timetaken = f - s

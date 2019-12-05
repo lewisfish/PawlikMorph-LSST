@@ -8,7 +8,7 @@ from pawlikMorphLSST.helpers import *
 from pawlikMorphLSST.pixmap import *
 from pawlikMorphLSST.objectMasker import *
 from pawlikMorphLSST.imageutils import *
-
+from pawlikMorphLSST.sersic import *
 
 __all__ = ["gaussfitter", "pixmap", "apertures", "asymmetry",
-           "imageutils", "objectMasker"]
+           "imageutils", "objectMasker", "sersic"]

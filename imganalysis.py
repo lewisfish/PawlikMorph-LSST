@@ -25,12 +25,14 @@ if __name__ == '__main__':
                         help="Source of the image.")
     parser.add_argument("-cc", "--catalogue", type=str, help="Check if any object in the\
                         provided catalogue occludes the analysed object.")
+    parser.add_argument("-sic", "--sersic", action="store_true", help="Calculate sersic profile.")
 
     args = parser.parse_args()
 
     files = helpers.getFiles(args.imgsource, file=args.file, folder=args.folder)
     curfolder, outfolder = helpers.getLocation(file=args.file, folder=args.folder)
     results = helpers.calcMorphology(files, outfolder, allAsymmetry=args.Aall,
+                                     calculateSersic=args.sersic,
                                      savePixelMap=args.savepixmap,
                                      saveCleanImage=args.savecleanimg,
                                      imageSource=args.imgsource,
