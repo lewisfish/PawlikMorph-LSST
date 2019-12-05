@@ -84,11 +84,13 @@ def checkFile(filename):
     return img, header, imgsize
 
 
-def getFiles(file=None, folder=None):
+def getFiles(imgSource, file=None, folder=None):
     '''Function to get files for analysis
 
     Parameters
     ----------
+    imageSource : str
+        Source of image, i.e which telescope took the image
     file : str, optional
         string that contains location of file to be analysed
 
@@ -104,7 +106,7 @@ def getFiles(file=None, folder=None):
 
     if folder:
         # Get all relevant files in folder
-        return Path(folder).glob(f"{imgsource}cutout*.fits")
+        return Path(folder).glob(f"{imgSource}cutout*.fits")
     else:
         # just single file so place in a generator manually
         return (Path(file) for i in range(1))
@@ -215,8 +217,14 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
             continue
         except AttributeError as e:
             continue
+
+        # convert image data type to float64 so that later calculations do not
+        # raise exceptions
         img = img.astype(np.float64)
-        # set default values for calculated parameters
+
+        if catalogue is None:
+            occludedSaveFile = ""
+
         newResult = Result(file, outfolder, occludedSaveFile)
 
         s = time.time()

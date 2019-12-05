@@ -127,7 +127,11 @@ def make_figure(result, save=False):
     filemask = result.pixelMapFile
     mask = fits.getdata(filemask)
 
-    listofStarstoPlot = _getStarsOccludObject(file, header, result.outfolder, result.occludedFile)
+    if result.occludedFile != "":
+        listofStarstoPlot = _getStarsOccludObject(file, header, result.outfolder, result.occludedFile)
+    else:
+        listofStarstoPlot = []
+
     fig, axs = plt.subplots(1, 2)
     fig.set_figheight(11.25)
     fig.set_figwidth(20)
@@ -156,7 +160,7 @@ def make_figure(result, save=False):
     axs[1].text(2, 13, text,
                 horizontalalignment='left', verticalalignment='top',
                 bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
-    circle = mpatches.Circle(result.apix, result.rmax, fill=False, label="Rmax", color="white")
+    circle = mpatches.Circle(((img.shape[0]/2)+1, (img.shape[1]/2)+1), result.rmax, fill=False, label="Rmax", color="white")
     axs[1].add_patch(circle)
     axs[1] = _supressAxs(axs[1])
 
