@@ -59,7 +59,8 @@ def inBbox(extent: List[float], point: List[float]) -> bool:
     return False
 
 
-def skybgr(img: np.ndarray, imgsize: int, file, args) -> Tuple[float]:
+def skybgr(img: np.ndarray, imgsize: int, file, largeImage: bool,
+           imageSource: str) -> Tuple[float]:
     '''Helper function for calculating skybgr
 
     Parameters
@@ -71,7 +72,10 @@ def skybgr(img: np.ndarray, imgsize: int, file, args) -> Tuple[float]:
 
     file: Path object
 
-    args: argpasre object
+    largeImage : bool
+
+    imgSource : str
+
 
     Returns
     -------
@@ -80,11 +84,11 @@ def skybgr(img: np.ndarray, imgsize: int, file, args) -> Tuple[float]:
 
     '''
 
-    if args.largeimage:
+    if largeImage:
         filename = file.name
-        if args.imgsource == "sdss":
+        if imageSource == "sdss":
             filename = filename.replace("sdss", "sdssl", 1)
-        elif args.imgsource == "hsc":
+        elif imageSource == "hsc":
             filename = filename.replace("hsc", "hscl", 1)
 
         infile = file.parents[0] / _Path(filename)

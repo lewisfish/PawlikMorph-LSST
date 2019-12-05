@@ -28,9 +28,14 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    files = helpers.getFiles(args)
-    curfolder, outfolder = helpers.getLocation(args)
-    results = helpers.calcMorphology(files, outfolder, args)
+    files = helpers.getFiles(file=args.file, folder=args.folder)
+    curfolder, outfolder = helpers.getLocation(file=args.file, folder=args.folder)
+    results = helpers.calcMorphology(files, outfolder, allAsymmetry=args.Aall,
+                                     savePixelMap=args.savepixmap,
+                                     saveCleanImage=args.savecleanimg,
+                                     imageSource=args.imgsource,
+                                     largeImage=args.largeimage,
+                                     catalogue=args.catalogue)
     print(" ")
     for i in results:
         print(i.file)

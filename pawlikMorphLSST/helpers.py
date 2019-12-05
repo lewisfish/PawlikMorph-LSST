@@ -4,7 +4,7 @@ import time
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
@@ -29,6 +29,9 @@ class Result:
     '''Class that stores the results of image analysis'''
 
     file: str
+    outfolder: Any
+    occludedFile: str
+    pixelMapFile: Any = ""
     A: List[float] = field(default_factory=lambda: [-99., -99.])
     As: List[float] = field(default_factory=lambda: [-99., -99.])
     As90: List[float] = field(default_factory=lambda: [-99., -99.])
@@ -81,14 +84,16 @@ def checkFile(filename):
     return img, header, imgsize
 
 
-def getFiles(args):
+def getFiles(file=None, folder=None):
     '''Function to get files for analysis
 
     Parameters
     ----------
+    file : str, optional
+        string that contains location of file to be analysed
 
-    args: argparseobject
-        comand line arguments.
+    folder : str, optional
+        string that contains location of folder of files to be analysed
 
     Return
     ------
@@ -97,22 +102,24 @@ def getFiles(args):
 
     '''
 
-    if args.folder:
+    if folder:
         # Get all relevant files in folder
-        return Path(args.folder).glob(f"{args.imgsource}cutout*.fits")
+        return Path(folder).glob(f"{imgsource}cutout*.fits")
     else:
         # just single file so place in a generator manually
-        return (Path(args.file) for i in range(1))
+        return (Path(file) for i in range(1))
 
 
-def getLocation(args):
+def getLocation(file=None, folder=None):
     '''Function to determine the outfolder, and current folder of file/set
-       of files provided via commandline
+       of files provided via command line
 
     Parameters
     ----------
-    args: argparseobject
-        comand line arguments.
+    file : str, optional
+        String that points to file to be analysed
+    folder : str, optional
+        String that points to folder of files to be analysed
 
     Returns
     -------
@@ -120,17 +127,17 @@ def getLocation(args):
         path to folder where data from analysis will be saved.
     '''
 
-    if args.file and args.folder:
+    if file and folder:
         raise _WrongCmdLineArguments("Script cant use both folder and file input!!")
 
-    if not args.file and not args.folder:
+    if not file and not folder:
         raise _WrongCmdLineArguments("Script needs input images to work!!")
 
-    if args.folder:
-        curfolder = Path(args.folder)
+    if folder:
+        curfolder = Path(folder)
         outfolder = curfolder.parents[0] / "output"
     else:
-        curfolder = Path(args.file).parents[0]
+        curfolder = Path(file).parents[0]
         outfolder = curfolder / "output"
 
     if not outfolder.exists():
@@ -139,27 +146,46 @@ def getLocation(args):
     return curfolder, outfolder
 
 
-def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
-                   occludedsaveFile="occluded-object-locations.csv"):
+def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
+                   allAsymmetry=True, savePixelMap=True, saveCleanImage=True,
+                   imageSource=None, catalogue=None, largeImage=False,
+                   paramsaveFile="parameters.csv",
+                   occludedSaveFile="occluded-object-locations.csv"):
     '''
     Calculates various morphological parameters of galaxies from an image.
 
     Parameters
     ----------
 
-    files: List[str] or List[Pathobjects] or generator object
+    files : List[str] or List[Pathobjects] or generator object
         files to iterate over
-    outfolder: Path object or str
+    outfolder : Path object or str
         path to folder where data from analysis will be saved
-    args: argpare object
-        cmd line arguments
+    asymmetry : bool, optional
+        Default false. If true calculates asymmetry value
+    shapeAsymmetry : bool, optional
+        Default false. If true calculates shape asymmetry value
+    allAsymmetry : bool, optional
+        Default True. If true calculates all asymmetry values.
+    imageSource : str
+        Contains the source of the image, i.e which telescope the image was
+        captured by
+    catalogue : str or Path, optional
+        Catalogue of objects nearby object of interest. Is used to mask out
+        objects that interfere with object of interest
+    largeImage : bool, optional
+        Default False. If true, a larger image is used to calculate the sky
+        background
     paramsaveFile: str or Path object
-        name of file where calculated files are to be written
-    occludedsaveFile: str or Path object
-        name of file where objects that occlude the object of interest are saved
+        Name of file where calculated files are to be written
+    occludedSaveFile: str or Path object
+        Name of file where objects that occlude the object of interest are saved
 
     Returns
     -------
+
+    results : Result data class
+        Container of all calculated results
 
     '''
 
@@ -172,8 +198,8 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
     paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
                           "As", "As90", "time", "star_flag"])
 
-    if args.catalogue:
-        outfile = outfolder / occludedsaveFile
+    if catalogue:
+        outfile = outfolder / occludedSaveFile
         objcsvfile = open(outfile, mode="w")
         objwriter = csv.writer(objcsvfile, delimiter=",")
         objwriter.writerow(["file", "ra", "dec", "type"])
@@ -191,7 +217,7 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
             continue
         img = img.astype(np.float64)
         # set default values for calculated parameters
-        newResult = Result(file)
+        newResult = Result(file, outfolder, occludedSaveFile)
 
         s = time.time()
 
@@ -199,7 +225,7 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
 
         # get sky background value and error
         try:
-            newResult.sky, newResult.sky_err = skybgr(img, imgsize, file, args)
+            newResult.sky, newResult.sky_err = skybgr(img, imgsize, file, largeImage, imageSource)
         except AttributeError:
             newResult.write(paramwriter)
             filename = file.name
@@ -212,8 +238,8 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
 
         tmpmask = pixelmap(img, newResult.sky + newResult.sky_err, 3)
         objlist = []
-        if args.catalogue:
-            newResult.star_flag, objlist = objectOccluded(tmpmask, file.name, args.catalogue, header)
+        if catalogue:
+            newResult.star_flag, objlist = objectOccluded(tmpmask, file.name, catalogue, header)
             if newResult.star_flag:
                 for i, obj in enumerate(objlist):
                     if i == 0:
@@ -229,17 +255,18 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
         # clean image of external sources
         img = maskstarsSEG(img)
 
-        if args.savecleanimg:
+        if saveCleanImage:
             filename = file.name
             filename = "clean_" + filename
             outfile = outfolder / filename
             hdu = fits.PrimaryHDU(data=img, header=header)
             hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
-        if args.savepixmap:
+        if savePixelMap:
             filename = file.name
             filename = "pixelmap_" + filename
             outfile = outfolder / filename
+            newResult.pixelMapFile = outfile
             hdu = fits.PrimaryHDU(data=mask, header=header)
             hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
@@ -254,10 +281,10 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
         newResult.apix = minapix(img, mask, aperturepixmap, starMask)
         angle = 180.
 
-        if args.A or args.Aall:
+        if asymmetry or allAsymmetry:
             newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
 
-        if args.As or args.Aall:
+        if shapeAsymmetry or allAsymmetry:
             newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
             newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, 90., starMask)
 
@@ -267,7 +294,7 @@ def calcMorphology(files, outfolder, args, paramsaveFile="parameters.csv",
         newResult.write(paramwriter)
         results.append(newResult)
 
-    if args.catalogue:
+    if catalogue:
         objcsvfile.close()
     csvfile.close()
     return results
