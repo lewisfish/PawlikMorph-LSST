@@ -11,6 +11,7 @@ from astropy.io import fits
 from astropy.modeling import models
 from astropy.utils.exceptions import AstropyWarning
 from astropy.visualization import LogStretch
+from matplotlib.offsetbox import AnchoredText
 from scipy.ndimage import gaussian_filter
 
 __all__ = ["make_figure"]
@@ -108,10 +109,162 @@ def _getStarsOccludObject(file, header, outfolder, occludedFile):
     return occludingStars
 
 
+def make_oneone(ax, img, result):
+    '''Function plots the cleaned image
+
+    Parameters
+    ----------
+
+    ax : matplotlip axis object
+
+    img : np.ndarray
+        image data to be plotted
+
+    results : Result dataclass
+        dataclasss of calculated results for object
+
+    Returns
+    -------
+
+    '''
+
+    log_stretch = LogStretch(10000.)
+
+    ax.imshow(log_stretch(_normalise(img)), origin="lower", aspect="auto")
+    ax.scatter(result.apix[0], result.apix[1], label="Asym. centre")
+    ax.set_title("Cleaned Image")
+
+    text = f"Sky={result.sky:.2f}\n" fr"Sky $\sigma$={result.sky_err:.2f}"
+    textbox = AnchoredText(text, frameon=True, loc=3, pad=0.5)
+    ax.add_artist(textbox)
+
+
+def make_onetwo(ax, mask, result):
+    '''Function plots the object map
+
+    Parameters
+    ----------
+
+    ax : matplotlip axis object
+
+    mask : np.ndarray
+        object mask data to be plotted
+
+    results : Result dataclass
+        dataclasss of calculated results for object
+
+    Returns
+    -------
+
+    '''
+
+    ax.imshow(mask, origin="lower", aspect="auto", cmap="gray")
+    ax.scatter(result.apix[0], result.apix[1], label="Asym. centre")
+    ax.set_title("Object mask")
+
+    text = f"A={result.A[0]:.3f}\nA_bgr={result.A[1]:.3f}\n" rf"$A_s$={result.As[0]:.3f}"
+    text += "\n" fr"$A_s90$={result.As90[0]:.3f}"
+    textbox = AnchoredText(text, frameon=True, loc=3, pad=0.5)
+    ax.add_artist(textbox)
+
+    circle = mpatches.Circle(((mask.shape[0]/2)+1, (mask.shape[1]/2)+1),
+                             result.rmax, fill=False, label="Rmax", color="white")
+    ax.add_patch(circle)
+
+
+def make_twoone(ax, shape, result):
+    '''Function plots the Sersic fit
+
+    Parameters
+    ----------
+
+    ax : matplotlip axis object
+        axis instance to plot to
+
+    shape : Tuple[int]
+        Shape of image
+
+    results : Result dataclass
+        dataclasss of calculated results for object
+
+    Returns
+    -------
+
+    modelimage : np.ndarray
+        fitted model sersic image
+
+
+    '''
+
+    log_stretch = LogStretch(10000.)
+
+    ny, nx = shape
+    y, x = np.mgrid[0:ny, 0:nx]
+    modelimage = models.Sersic2D.evaluate(x, y, result.sersic_amplitude,
+                                          result.sersic_r_eff, result.sersic_n,
+                                          result.sersic_x_0, result.sersic_y_0,
+                                          result.sersic_ellip, result.sersic_theta)
+
+    modelimage += np.random.normal(result.sky, result.sky_err, size=shape)
+    ax.imshow(log_stretch(_normalise(modelimage)), origin="lower", aspect="auto")
+    ax.scatter(result.sersic_x_0, result.sersic_y_0, label="Sersic centre")
+    ax.set_title("Sersic fit")
+
+    text = f"Ellip.={result.sersic_ellip:.3f}\n"
+    text += f"n={result.sersic_n:.3f}"
+    textbox = AnchoredText(text, frameon=True, loc=3, pad=0.5)
+    ax.add_artist(textbox)
+
+    a = result.sersic_r_eff
+    b = a * np.abs(1. - result.sersic_ellip)
+    x0 = result.sersic_x_0
+    y0 = result.sersic_y_0
+    theta = result.sersic_theta * 180./np.pi
+    ellipse = mpatches.Ellipse(xy=(x0, y0), width=a, height=b, angle=theta, fill=False, label="Sersic half light", color="red")
+    ax.add_patch(ellipse)
+
+    return modelimage
+
+
+def make_twotwo(ax, img, modelImage, listofStarstoPlot, result):
+    ''' function plots sersic fit residual
+
+    Parameters
+    ----------
+
+    ax : matplotlip axis object
+        axis instance to plot to
+
+    img : np.ndarray
+        image data to be plotted
+
+    modelImage : np.ndarray
+        model sersic image
+
+    listofStarstoPlot : List[float]
+        list of stars to that occlude the main object
+
+    results : Result dataclass
+        dataclasss of calculated results for object
+
+    Returns
+    -------
+
+    '''
+
+    if len(listofStarstoPlot) > 0:
+        imageMask = np.where(result.starMask == 1, img, np.rot90(img))
+        ax.imshow(_normalise(imageMask - modelImage), origin="lower", aspect="auto")
+    else:
+        ax.imshow(_normalise(img - modelImage), origin="lower", aspect="auto")
+
+    ax.set_title("Sersic fit residual")
+
+
 def make_figure(result, save=False):
-    '''Function plots results from image analysis. Plots two images
-       Left: original image with stars overplotted if any
-       Right: object pixel map and stars overplotted if any.
+    '''Function plots results from image analysis. Plots two or four images.
+       Top row: original image  and object map with stars overplotted if any.
+       bottom row: Sersic fit and residual with stars overplotted if any.
 
     Parameters
     ----------
@@ -127,8 +280,6 @@ def make_figure(result, save=False):
 
 
     '''
-
-    log_stretch = LogStretch(10000.)
 
     with warnings.catch_warnings():
         # ignore invalid card warnings
@@ -146,68 +297,16 @@ def make_figure(result, save=False):
     if result.sersic_r_eff != -99:
         fig, axs = plt.subplots(2, 2)
         axs = axs.ravel()
+        make_oneone(axs[0], img, result)
+        make_onetwo(axs[1], mask, result)
+        modelImage = make_twoone(axs[2], img.shape, result)
+        make_twotwo(axs[3], img, modelImage, listofStarstoPlot, result)
     else:
         fig, axs = plt.subplots(1, 2)
+        make_oneone(axs[0], img, result)
+        make_onetwo(axs[1], mask, result)
     fig.set_figheight(11.25)
     fig.set_figwidth(20)
-
-    axs[0].imshow(log_stretch(_normalise(img)), origin="lower", aspect="auto")
-    axs[0].scatter(result.apix[0], result.apix[1], label="Asym. centre")
-    axs[0].set_title("Cleaned Image")
-
-    text = f"Sky={result.sky:.2f}\n" fr"Sky $\sigma$={result.sky_err:.2f}"
-
-    axs[0].text(2, 13, text,
-                horizontalalignment='left', verticalalignment='top',
-                bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
-
-    axs[1].imshow(mask, origin="lower", aspect="auto", cmap="gray")
-    axs[1].scatter(result.apix[0], result.apix[1], label="Asym. centre")
-    axs[1].set_title("Object mask")
-
-    text = f"A={result.A[0]:.3f}\nA_bgr={result.A[1]:.3f}\n" rf"$A_s$={result.As[0]:.3f}"
-    text += "\n" fr"$A_s90$={result.As90[0]:.3f}"
-
-    axs[1].text(2, 22, text,
-                horizontalalignment='left', verticalalignment='top',
-                bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
-    circle = mpatches.Circle(((img.shape[0]/2)+1, (img.shape[1]/2)+1), result.rmax, fill=False, label="Rmax", color="white")
-    axs[1].add_patch(circle)
-
-    if result.sersic_r_eff != -99:
-        ny, nx = img.shape
-        y, x = np.mgrid[0:ny, 0:nx]
-        modelimage = models.Sersic2D.evaluate(x, y, result.sersic_amplitude,
-                                              result.sersic_r_eff, result.sersic_n,
-                                              result.sersic_x_0, result.sersic_y_0,
-                                              result.sersic_ellip, result.sersic_theta)
-
-        modelimage += np.random.normal(result.sky, result.sky_err, size=img.shape)
-        axs[2].imshow(log_stretch(_normalise(modelimage)), origin="lower", aspect="auto")
-        axs[2].scatter(result.sersic_x_0, result.sersic_y_0, label="Sersic centre")
-        axs[2].set_title("Sersic fit")
-
-        text = f"Ellip.={result.sersic_ellip:.3f}\n"
-        text += f"n={result.sersic_n:.3f}"
-        axs[2].text(2, 13, text,
-                    horizontalalignment='left', verticalalignment='top',
-                    bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
-
-        a = result.sersic_r_eff
-        b = a * np.abs(1. - result.sersic_ellip)
-        x0 = result.sersic_x_0
-        y0 = result.sersic_y_0
-        theta = result.sersic_theta * 180./np.pi
-        ellipse = mpatches.Ellipse(xy=(x0, y0), width=a, height=b, angle=theta, fill=False, label="Sersic half light", color="red")
-        axs[2].add_patch(ellipse)
-
-        if len(listofStarstoPlot) > 0:
-            imageMask = np.where(result.starMask == 1, img, np.rot90(img))
-            axs[3].imshow(_normalise(imageMask - modelimage), origin="lower", aspect="auto")
-        else:
-            axs[3].imshow(_normalise(img - modelimage), origin="lower", aspect="auto")
-
-        axs[3].set_title("Sersic fit residual")
 
     for i, ax in enumerate(axs):
         ax = _supressAxs(ax)
@@ -221,5 +320,5 @@ def make_figure(result, save=False):
 
     if save:
         plt.savefig("results/result_" + result.file.name[11:-11] + ".png", dpi=96)
-    plt.close()
     # plt.show()
+    plt.close()
