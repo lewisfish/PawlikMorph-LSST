@@ -5,7 +5,7 @@ Replicates the ability to prepare images, generate object binary masks and calcu
 
 ## Usage
 
-./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sci] [-li] [-src {sdss,hsc}] [-cc CATALOGUE]
+./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sci] [-li] [-src {sdss,hsc}] [-cc CATALOGUE] [-sersic]
 
 
  - -h, shows the help screen
@@ -19,10 +19,10 @@ Replicates the ability to prepare images, generate object binary masks and calcu
  - -li, Use larger image cutouts to estimate sky background
  - -src, Source of the image
  - -cc, Check if any object in the provided catalogue occludes the analysed object
- - -sic, Calculate sersic profile
+ - -sersic, Calculate Sersic profile
  
  Example
-  - ./imganalysis.py -fo sample/data -Aall -spm -sci -src sdss -li
+  - ./imganalysis.py -fo sample/data -Aall -spm -sci -src sdss -li -sersic
   - This will generate a folder sample/output where pixelmaps of the object, clean images, and calculated parameters are stored.
 
 ## Installation
