@@ -19,6 +19,7 @@ Replicates the ability to prepare images, generate object binary masks and calcu
  - -li, Use larger image cutouts to estimate sky background
  - -src, Source of the image
  - -cc, Check if any object in the provided catalogue occludes the analysed object
+ - -sic, Calculate sersic profile
  
  Example
   - ./imganalysis.py -fo sample/data -Aall -spm -sci -src sdss -li
