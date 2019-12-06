@@ -1,13 +1,15 @@
 import re
 import sys
 from typing import Tuple, List
+import warnings
 
 import numpy as np
 import pandas as pd
 
 from astropy import wcs
-from astropy.coordinates import SkyCoord
 from astropy import units
+from astropy.coordinates import SkyCoord
+from astropy.utils.exceptions import AstropyWarning
 
 __all__ = ["objectOccluded"]
 
@@ -48,7 +50,10 @@ def objectOccluded(mask: np.ndarray, name: str, catalogue: str, header,
     listofobjs = _findStars(catalogue, ra, dec, galaxy, cosmicray, unknown)
     listofOccludedObjs = []
 
-    w = wcs.WCS(header)
+    with warnings.catch_warnings():
+        # ignore invalid card warnings
+        warnings.simplefilter('ignore', category=AstropyWarning)
+        w = wcs.WCS(header)
 
     for obj in listofobjs:
         pos = SkyCoord(obj[0]*units.deg, obj[1]*units.deg)

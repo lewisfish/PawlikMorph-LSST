@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path as _Path
 from typing import List, Tuple
 
@@ -7,6 +8,7 @@ from astropy.io import fits
 from astropy.modeling import models, fitting
 from astropy.coordinates import SkyCoord
 from astropy.stats import gaussian_fwhm_to_sigma, sigma_clipped_stats
+from astropy.utils.exceptions import AstropyWarning
 from astropy import wcs
 from photutils import detect_threshold, detect_sources, CircularAperture
 from scipy import ndimage
@@ -93,7 +95,10 @@ def skybgr(img: np.ndarray, imgsize: int, file, largeImage: bool,
 
         infile = file.parents[0] / _Path(filename)
         try:
-            largeimg = fits.getdata(infile)
+            with warnings.catch_warnings():
+                # ignore invalid card warnings
+                warnings.simplefilter('ignore', category=AstropyWarning)
+                largeimg = fits.getdata(infile)
             # clean image so that skybgr not over estimated
             largeimg = maskstarsSEG(largeimg)
             sky, sky_err, fwhms, theta = _calcSkybgr(largeimg, largeimg.shape[0], img)
@@ -109,6 +114,7 @@ def skybgr(img: np.ndarray, imgsize: int, file, largeImage: bool,
 
 def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, int]:
     '''Function that calculates the sky background value.
+       Near direct translation of IDL code.
 
     Parameters
     ----------
@@ -431,7 +437,10 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
     skyFluxRatio = ((skyCount) / expTime) * 10**(factor)
     skyMag = -2.5 * np.log10(skyFluxRatio)
 
-    wcsFromHeader = wcs.WCS(header)
+    with warnings.catch_warnings():
+        # ignore invalid card warnings
+        warnings.simplefilter('ignore', category=AstropyWarning)
+        wcsFromHeader = wcs.WCS(header)
 
     # if no objects create empty mask that wont interfere with future calculations
     if len(objs) > 0:

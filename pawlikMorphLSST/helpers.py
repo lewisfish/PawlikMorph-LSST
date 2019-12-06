@@ -6,10 +6,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Tuple, Any
 
+import numpy as np
+
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
-
-import numpy as np
 
 from .apertures import aperpixmap
 from .apertures import distarr
@@ -34,6 +34,7 @@ class Result:
     occludedFile: str
     pixelMapFile: Any = ""
     cleanImage: Any = ""
+    starMask: Any = ""
     A: List[float] = field(default_factory=lambda: [-99., -99.])
     As: List[float] = field(default_factory=lambda: [-99., -99.])
     As90: List[float] = field(default_factory=lambda: [-99., -99.])
@@ -87,7 +88,11 @@ class _WrongCmdLineArguments(_Error):
 
 def checkFile(filename):
 
-    img, header = fits.getdata(filename, header=True)
+    with warnings.catch_warnings():
+        # ignore invalid card warnings
+        warnings.simplefilter('ignore', category=AstropyWarning)
+
+        img, header = fits.getdata(filename, header=True)
     # The following is required as fits files are big endian and skimage
     # assumes little endian. https://stackoverflow.com/a/30284033/6106938
     # https://en.wikipedia.org/wiki/Endianness
@@ -207,9 +212,6 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
 
     '''
 
-    # suppress warnings about unrecognised keywords
-    warnings.simplefilter('ignore', category=AstropyWarning)
-
     outfile = outfolder / paramsaveFile
     csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
@@ -228,6 +230,7 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
 
     for file in files:
 
+        print(file)
         try:
             img, header, imgsize = checkFile(file)
         except IOError:
@@ -273,6 +276,7 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
                         objwriter.writerow(["", obj[0], obj[1], obj[2]])
 
         starMask = maskstarsPSF(img, objlist, header, newResult.sky)
+        newResult.starMask = starMask
         mask = pixelmap(img, newResult.sky + newResult.sky_err, 3, starMask)
 
         img -= newResult.sky

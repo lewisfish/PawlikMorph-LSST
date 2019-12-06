@@ -25,7 +25,7 @@ if __name__ == '__main__':
                         help="Source of the image.")
     parser.add_argument("-cc", "--catalogue", type=str, help="Check if any object in the\
                         provided catalogue occludes the analysed object.")
-    parser.add_argument("-sic", "--sersic", action="store_true", help="Calculate sersic profile.")
+    parser.add_argument("-sersic", "--sersic", action="store_true", help="Calculate sersic profile.")
 
     args = parser.parse_args()
 
