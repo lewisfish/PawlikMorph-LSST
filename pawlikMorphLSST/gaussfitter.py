@@ -82,7 +82,7 @@ def moments(data: np.ndarray, angle_guess=90.0) -> List[float]:
     params = [height] + params
     params = params + [width_x, width_y]
 
-    params = params + [angle_guess]
+    params = params + [angle_guess*np.pi/180.]
 
     return params
 
@@ -134,7 +134,6 @@ def twodgaussian(xydata, offset: float, amplitude: float, xo: float, yo: float,
     width_x, width_y = sigma_x, sigma_y
 
     rota = theta
-    rota = np.pi/180. * float(rota)
     rcen_x = center_x * np.cos(rota) - center_y * np.sin(rota)
     rcen_y = center_x * np.sin(rota) + center_y * np.cos(rota)
 

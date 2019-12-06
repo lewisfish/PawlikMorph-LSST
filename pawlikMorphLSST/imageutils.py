@@ -134,25 +134,29 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
 
     # Define skyregion by fitting a Gaussian to the galaxy and computing on all
     # outwith this
-    # try:
-    #     if smallimg is not None:
-    #         yfit = _gauss2dfit(smallimg, smallimg.shape[0])
-    #     else:
-    #         yfit = _gauss2dfit(img, imgsize)
-    #     fact = 2 * np.sqrt(2 * np.log(2))
-    #     fwhm_x = fact * np.abs(yfit[4])
-    #     fwhm_y = fact * np.abs(yfit[5])
-    #     r_in = 2. * max(fwhm_x, fwhm_y)
-    #     theta = yfit[6]
-    # except RuntimeError:
-    if smallimg is not None:
-        yfit = _altgauss2dfit(smallimg, smallimg.shape[0])
-    else:
-        yfit = _altgauss2dfit(img, imgsize)
-    fwhm_x = yfit.x_fwhm
-    fwhm_y = yfit.y_fwhm
-    r_in = 2. * max(fwhm_x, fwhm_y)
-    theta = yfit.theta
+    try:
+        if smallimg is not None:
+            yfit = _gauss2dfit(smallimg, smallimg.shape[0])
+        else:
+            yfit = _gauss2dfit(img, imgsize)
+        fact = 2 * np.sqrt(2 * np.log(2))
+        fwhm_x = fact * np.abs(yfit[4])
+        fwhm_y = fact * np.abs(yfit[5])
+        r_in = 2. * max(fwhm_x, fwhm_y)
+        theta = yfit[6]
+        thetaDeg = theta / (2.*np.pi)
+        n = int(thetaDeg)
+        r = (thetaDeg) - n
+        theta = (r * 2.*np.pi) - np.pi/2.
+    except RuntimeError:
+        if smallimg is not None:
+            yfit = _altgauss2dfit(smallimg, smallimg.shape[0])
+        else:
+            yfit = _altgauss2dfit(img, imgsize)
+        fwhm_x = yfit.x_fwhm
+        fwhm_y = yfit.y_fwhm
+        r_in = 2. * max(fwhm_x, fwhm_y)
+        theta = yfit.theta.value
 
     skyregion = distarrvar > r_in
     skymask = np.ma.array(img, mask=skyregion)
@@ -168,7 +172,7 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
         r_in = 2. * max(fwhm_x, fwhm_y)
         skyregion = distarrvar < r_in
         skymask = np.ma.array(img, mask=skyregion)
-        theta = yfit.theta
+        theta = yfit.theta.value
 
     if skymask.count() < 100:
         raise _SkyError(f"Error! Sky region too small {skymask.count()}")
@@ -190,7 +194,7 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
         mean_sky, median_sky, sigma_sky = sigma_clipped_stats(img, mask=skyregion, sigma=3.)
         sky = 3.*median_sky - 2.*mean_sky
         sky_err = sigma_sky
-    return sky, sky_err, [fwhm_x, fwhm_y], theta.value
+    return sky, sky_err, [fwhm_x, fwhm_y], theta
 
 
 def _gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:

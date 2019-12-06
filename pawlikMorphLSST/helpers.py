@@ -247,12 +247,11 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
 
         s = time.time()
 
-        print(file)
-
         # get sky background value and error
         try:
             newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(img, imgsize, file, largeImage, imageSource)
         except AttributeError:
+            # TODO can fail silently if some other attribute error is raised!
             newResult.write(paramwriter)
             filename = file.name
             filename = "pixelmap_" + filename

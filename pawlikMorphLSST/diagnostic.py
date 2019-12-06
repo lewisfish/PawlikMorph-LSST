@@ -139,6 +139,8 @@ def make_figure(result, save=False):
 
     axs[0].imshow(log_stretch(_normalise(img)), origin="lower", aspect="auto")
     axs[0].scatter(result.apix[0], result.apix[1], label="Asym. centre")
+    axs[0].set_title("Cleaned Image")
+
     if(len(listofStarstoPlot) > 0):
         axs[0].scatter(*zip(*listofStarstoPlot), label="STAR")
 
@@ -150,6 +152,8 @@ def make_figure(result, save=False):
 
     axs[1].imshow(mask, origin="lower", aspect="auto", cmap="gray")
     axs[1].scatter(result.apix[0], result.apix[1], label="Asym. centre")
+    axs[1].set_title("Object mask")
+
     if(len(listofStarstoPlot) > 0):
         axs[1].scatter(*zip(*listofStarstoPlot), label="STAR")
 
@@ -172,10 +176,12 @@ def make_figure(result, save=False):
     modelimage += np.random.normal(result.sky, result.sky_err, size=img.shape)
     axs[2].imshow(log_stretch(_normalise(modelimage)), origin="lower", aspect="auto")
     axs[2].scatter(result.sersic_x_0, result.sersic_y_0, label="Sersic centre")
+    axs[2].set_title("Sersic fit")
 
-    text = f"Ellip.={result.sersic_ellip[0]:.3f}\n"
-    text += f"n={result.sersic_n[0]:.3f}"
-    axs[2].text(2, 22, text,
+
+    text = f"Ellip.={result.sersic_ellip:.3f}\n"
+    text += f"n={result.sersic_n:.3f}"
+    axs[2].text(2, 13, text,
                 horizontalalignment='left', verticalalignment='top',
                 bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
 
@@ -188,14 +194,14 @@ def make_figure(result, save=False):
     axs[2].add_patch(ellipse)
 
     axs[3].imshow(_normalise(modelimage - img), origin="lower", aspect="auto")
+    axs[3].set_title("Sersic fit residual")
 
     for ax in axs:
         ax = _supressAxs(ax)
+        ax.legend()
 
-    plt.subplots_adjust(top=0.995, bottom=0.005, left=0.003, right=0.997, hspace=0.018, wspace=0.006)
-    axs[0].legend()
-    axs[1].legend()
+    plt.subplots_adjust(top=0.975, bottom=0.005, left=0.003, right=0.997, hspace=0.050, wspace=0.006)
 
     if save:
-        plt.savefig("result_" + file[20:-9] + ".png", dpi=96)
-    plt.show()
+        plt.savefig("result_" + result.file.name[11:-11] + ".png", dpi=96)
+    # plt.show()
