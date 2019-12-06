@@ -221,4 +221,5 @@ def make_figure(result, save=False):
 
     if save:
         plt.savefig("results/result_" + result.file.name[11:-11] + ".png", dpi=96)
+    plt.close()
     # plt.show()

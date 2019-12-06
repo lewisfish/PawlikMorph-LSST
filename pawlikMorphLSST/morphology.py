@@ -116,9 +116,10 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
             print(" ")
             continue
 
-        tmpmask = pixelmap(img, newResult.sky + newResult.sky_err, 3)
-        objlist = []
         if catalogue:
+
+            tmpmask = pixelmap(img, newResult.sky + newResult.sky_err, 3)
+            objlist = []
             newResult.star_flag, objlist = objectOccluded(tmpmask, file.name, catalogue, header)
             if newResult.star_flag:
                 for i, obj in enumerate(objlist):
@@ -127,9 +128,12 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
                     else:
                         objwriter.writerow(["", obj[0], obj[1], obj[2]])
 
-        starMask = maskstarsPSF(img, objlist, header, newResult.sky)
-        newResult.starMask = starMask
-        mask = pixelmap(img, newResult.sky + newResult.sky_err, 3, starMask)
+            starMask = maskstarsPSF(img, objlist, header, newResult.sky)
+            newResult.starMask = starMask
+            mask = pixelmap(img, newResult.sky + newResult.sky_err, 3, starMask)
+        else:
+            mask = pixelmap(img, newResult.sky + newResult.sky_err, 3)
+            starMask = np.ones_like(img)
 
         img -= newResult.sky
 

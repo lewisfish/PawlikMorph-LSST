@@ -31,6 +31,27 @@ class _WrongCmdLineArguments(_Error):
 
 
 def checkFile(filename):
+    '''Function that checks file exists, is right size, and right source
+
+    Parameters
+    ----------
+
+    filename : str or Path object
+        Name of file to check
+
+    Returns
+    -------
+
+    img : np.ndarray
+        image data
+
+    header : object
+        header from fits file
+
+    imgsize : int
+        Size of image in 1 dimension. Image is square
+
+    '''
 
     with warnings.catch_warnings():
         # ignore invalid card warnings
