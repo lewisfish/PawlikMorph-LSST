@@ -33,6 +33,7 @@ class Result:
     outfolder: Any
     occludedFile: str
     pixelMapFile: Any = ""
+    cleanImage: Any = ""
     A: List[float] = field(default_factory=lambda: [-99., -99.])
     As: List[float] = field(default_factory=lambda: [-99., -99.])
     As90: List[float] = field(default_factory=lambda: [-99., -99.])
@@ -40,6 +41,15 @@ class Result:
     apix: Tuple[float] = (-99., -99.)
     sky: float = -99.
     sky_err: float = 99.
+    fwhms: List[float] = field(default_factory=lambda: [-99., -99.])
+    theta: float = -99.
+    sersic_amplitude: float = -99.
+    sersic_r_eff: float = -99.
+    sersic_n: float = -99.
+    sersic_x_0: float = -99.
+    sersic_y_0: float = -99.
+    sersic_ellip: float = -99.
+    sersic_theta: float = -99.
     time: float = 0.
     star_flag: bool = False
 
@@ -48,7 +58,12 @@ class Result:
         objectfile.writerow([f"{self.file}", f"{self.apix}", f"{self.rmax}",
                              f"{self.sky}", f"{self.sky_err}", f"{self.A[0]}",
                              f"{self.A[1]}", f"{self.As[0]}", f"{self.As90[0]}",
-                             f"{self.time}", f"{self.star_flag}"])
+                             f"{self.fwhms}", f"{self.theta}",
+                             f"{self.sersic_amplitude}", f"{self.sersic_r_eff}",
+                             f"{self.sersic_n}", f"{self.sersic_x_0}",
+                             f"{self.sersic_y_0}", f"{self.sersic_ellip}",
+                             f"{self.sersic_theta}", f"{self.time}",
+                             f"{self.star_flag}"])
 
 
 class _Error(Exception):
@@ -199,7 +214,9 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
     csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
     paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
-                          "As", "As90", "time", "star_flag"])
+                          "As", "As90", "fwhms", "theta", "sersic_amplitude",
+                          "sersic_r_eff", "sersic_n", "sersic_x_0", "sersic_y_0",
+                          "sersic_ellip", "sersic_theta", "time", "star_flag"])
 
     if catalogue:
         outfile = outfolder / occludedSaveFile
@@ -234,7 +251,7 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
 
         # get sky background value and error
         try:
-            newResult.sky, newResult.sky_err = skybgr(img, imgsize, file, largeImage, imageSource)
+            newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(img, imgsize, file, largeImage, imageSource)
         except AttributeError:
             newResult.write(paramwriter)
             filename = file.name
@@ -268,6 +285,7 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
             filename = file.name
             filename = "clean_" + filename
             outfile = outfolder / filename
+            newResult.cleanImage = outfile
             hdu = fits.PrimaryHDU(data=img, header=header)
             hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
@@ -299,13 +317,13 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
 
         if calculateSersic:
             p = fitSersic(img, newResult.apix, newResult.fwhms, newResult.theta)
-            newResult.sersic_amplitude = p.amplitude
-            newResult.sersic_r_eff = p.r_eff
-            newResult.sersic_ellip = p.ellip
-            newResult.sersic_n = p.n
-            newResult.sersic_theta = p.theta
-            newResult.x_0 = p.x_0
-            newResult.y_0 = p.y_0
+            newResult.sersic_amplitude = p.amplitude.value
+            newResult.sersic_r_eff = p.r_eff.value
+            newResult.sersic_ellip = p.ellip.value
+            newResult.sersic_n = p.n.value
+            newResult.sersic_theta = p.theta.value
+            newResult.sersic_x_0 = p.x_0.value
+            newResult.sersic_y_0 = p.y_0.value
 
         f = time.time()
         timetaken = f - s

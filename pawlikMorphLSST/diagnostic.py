@@ -3,6 +3,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
+from astropy.modeling import models
 from astropy.visualization import LogStretch
 from astropy import units
 from astropy import wcs
@@ -121,18 +122,18 @@ def make_figure(result, save=False):
 
     log_stretch = LogStretch(10000.)
 
-    file = str(result.file)
-    img, header = fits.getdata(file, header=True)
+    img, header = fits.getdata(result.cleanImage, header=True)
 
     filemask = result.pixelMapFile
     mask = fits.getdata(filemask)
 
     if result.occludedFile != "":
-        listofStarstoPlot = _getStarsOccludObject(file, header, result.outfolder, result.occludedFile)
+        listofStarstoPlot = _getStarsOccludObject(result.file, header, result.outfolder, result.occludedFile)
     else:
         listofStarstoPlot = []
 
-    fig, axs = plt.subplots(1, 2)
+    fig, axs = plt.subplots(2, 2)
+    axs = axs.ravel()
     fig.set_figheight(11.25)
     fig.set_figwidth(20)
 
@@ -143,11 +144,9 @@ def make_figure(result, save=False):
 
     text = f"Sky={result.sky:.2f}\n" fr"Sky $\sigma$={result.sky_err:.2f}"
 
-    axs[0].text(2, 7, text,
+    axs[0].text(2, 13, text,
                 horizontalalignment='left', verticalalignment='top',
                 bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
-
-    axs[0] = _supressAxs(axs[0])
 
     axs[1].imshow(mask, origin="lower", aspect="auto", cmap="gray")
     axs[1].scatter(result.apix[0], result.apix[1], label="Asym. centre")
@@ -157,15 +156,46 @@ def make_figure(result, save=False):
     text = f"A={result.A[0]:.3f}\nA_bgr={result.A[1]:.3f}\n" rf"$A_s$={result.As[0]:.3f}"
     text += "\n" fr"$A_s90$={result.As90[0]:.3f}"
 
-    axs[1].text(2, 13, text,
+    axs[1].text(2, 22, text,
                 horizontalalignment='left', verticalalignment='top',
                 bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
     circle = mpatches.Circle(((img.shape[0]/2)+1, (img.shape[1]/2)+1), result.rmax, fill=False, label="Rmax", color="white")
     axs[1].add_patch(circle)
-    axs[1] = _supressAxs(axs[1])
 
-    plt.subplots_adjust(top=0.985, bottom=0.015, left=0.008, right=0.992, hspace=0.2, wspace=0.016)
-    plt.legend()
+    ny, nx = img.shape
+    y, x = np.mgrid[0:ny, 0:nx]
+    modelimage = models.Sersic2D.evaluate(x, y, result.sersic_amplitude,
+                                          result.sersic_r_eff, result.sersic_n,
+                                          result.sersic_x_0, result.sersic_y_0,
+                                          result.sersic_ellip, result.sersic_theta)
+
+    modelimage += np.random.normal(result.sky, result.sky_err, size=img.shape)
+    axs[2].imshow(log_stretch(_normalise(modelimage)), origin="lower", aspect="auto")
+    axs[2].scatter(result.sersic_x_0, result.sersic_y_0, label="Sersic centre")
+
+    text = f"Ellip.={result.sersic_ellip[0]:.3f}\n"
+    text += f"n={result.sersic_n[0]:.3f}"
+    axs[2].text(2, 22, text,
+                horizontalalignment='left', verticalalignment='top',
+                bbox=dict(facecolor='white', alpha=1.0, boxstyle='round'))
+
+    a = result.sersic_r_eff
+    b = a * np.abs(1. - result.sersic_ellip)
+    x0 = result.sersic_x_0
+    y0 = result.sersic_y_0
+    theta = result.sersic_theta * 180./np.pi
+    ellipse = mpatches.Ellipse(xy=(x0, y0), width=a, height=b, angle=theta, fill=False, label="Sersic half light", color="red")
+    axs[2].add_patch(ellipse)
+
+    axs[3].imshow(_normalise(modelimage - img), origin="lower", aspect="auto")
+
+    for ax in axs:
+        ax = _supressAxs(ax)
+
+    plt.subplots_adjust(top=0.995, bottom=0.005, left=0.003, right=0.997, hspace=0.018, wspace=0.006)
+    axs[0].legend()
+    axs[1].legend()
+
     if save:
         plt.savefig("result_" + file[20:-9] + ".png", dpi=96)
     plt.show()

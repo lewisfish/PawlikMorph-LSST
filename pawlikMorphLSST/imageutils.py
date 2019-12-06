@@ -96,15 +96,15 @@ def skybgr(img: np.ndarray, imgsize: int, file, largeImage: bool,
             largeimg = fits.getdata(infile)
             # clean image so that skybgr not over estimated
             largeimg = maskstarsSEG(largeimg)
-            sky, sky_err = _calcSkybgr(largeimg, largeimg.shape[0], img)
+            sky, sky_err, fwhms, theta = _calcSkybgr(largeimg, largeimg.shape[0], img)
         except IOError:
             print(f"Large image of {filename}, does not exist!")
-            sky, sky_err = _calcSkybgr(img, imgsize)
+            sky, sky_err, fwhms, theta = _calcSkybgr(img, imgsize)
 
     else:
-        sky, sky_err = _calcSkybgr(img, imgsize)
+        sky, sky_err, fwhms, theta = _calcSkybgr(img, imgsize)
 
-    return sky, sky_err
+    return sky, sky_err, fwhms, theta
 
 
 def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, int]:
@@ -134,32 +134,41 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
 
     # Define skyregion by fitting a Gaussian to the galaxy and computing on all
     # outwith this
-    try:
-        if smallimg is not None:
-            yfit = _gauss2dfit(smallimg, smallimg.shape[0])
-        else:
-            yfit = _gauss2dfit(img, imgsize)
-        fact = 2 * np.sqrt(2 * np.log(2))
-        fwhm_x = fact * np.abs(yfit[4])
-        fwhm_y = fact * np.abs(yfit[5])
-        r_in = 2. * max(fwhm_x, fwhm_y)
-    except RuntimeError:
+    # try:
+    #     if smallimg is not None:
+    #         yfit = _gauss2dfit(smallimg, smallimg.shape[0])
+    #     else:
+    #         yfit = _gauss2dfit(img, imgsize)
+    #     fact = 2 * np.sqrt(2 * np.log(2))
+    #     fwhm_x = fact * np.abs(yfit[4])
+    #     fwhm_y = fact * np.abs(yfit[5])
+    #     r_in = 2. * max(fwhm_x, fwhm_y)
+    #     theta = yfit[6]
+    # except RuntimeError:
+    if smallimg is not None:
+        yfit = _altgauss2dfit(smallimg, smallimg.shape[0])
+    else:
         yfit = _altgauss2dfit(img, imgsize)
-        fwhm_x = yfit.x_fwhm
-        fwhm_y = yfit.y_fwhm
-        r_in = 2. * max(fwhm_x, fwhm_y)
+    fwhm_x = yfit.x_fwhm
+    fwhm_y = yfit.y_fwhm
+    r_in = 2. * max(fwhm_x, fwhm_y)
+    theta = yfit.theta
 
-    skyregion = distarrvar < r_in
+    skyregion = distarrvar > r_in
     skymask = np.ma.array(img, mask=skyregion)
 
     if skymask.count() < 300:
         # if skyregion too small try with more robust Gaussian fitter
-        yfit = _altgauss2dfit(img, imgsize)
+        if smallimg is not None:
+            yfit = _altgauss2dfit(smallimg, smallimg.shape[0])
+        else:
+            yfit = _altgauss2dfit(img, imgsize)
         fwhm_x = yfit.x_fwhm
         fwhm_y = yfit.y_fwhm
         r_in = 2. * max(fwhm_x, fwhm_y)
         skyregion = distarrvar < r_in
         skymask = np.ma.array(img, mask=skyregion)
+        theta = yfit.theta
 
     if skymask.count() < 100:
         raise _SkyError(f"Error! Sky region too small {skymask.count()}")
@@ -181,7 +190,7 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
         mean_sky, median_sky, sigma_sky = sigma_clipped_stats(img, mask=skyregion, sigma=3.)
         sky = 3.*median_sky - 2.*mean_sky
         sky_err = sigma_sky
-    return sky, sky_err
+    return sky, sky_err, [fwhm_x, fwhm_y], theta.value
 
 
 def _gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
