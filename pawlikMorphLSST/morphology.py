@@ -12,10 +12,10 @@ from .asymmetry import minapix
 from .helpers import checkFile
 from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
-from .imageutils import skybgr
 from .objectMasker import objectOccluded
 from .result import Result
 from .sersic import fitSersic
+from .skyBackground import skybgr
 from .pixmap import pixelmap
 
 __all__ = ["calcMorphology"]

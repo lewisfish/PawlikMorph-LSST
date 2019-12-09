@@ -18,7 +18,7 @@ __all__ = ["make_figure"]
 
 
 def _normalise(image: np.ndarray):
-    '''Function normalises an array s.t it over a range[0., 1.]
+    '''Function normalises an array s.t it is over a range[0., 1.]
 
     Parameters
     ----------
