@@ -21,7 +21,7 @@ from .pixmap import pixelmap
 __all__ = ["calcMorphology"]
 
 
-def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
+def calcMorphology(files, outfolder, filterSize, asymmetry=False, shapeAsymmetry=False,
                    allAsymmetry=True, calculateSersic=False, savePixelMap=True,
                    saveCleanImage=True, imageSource=None, catalogue=None,
                    largeImage=False, paramsaveFile="parameters.csv",
@@ -98,7 +98,7 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
         if catalogue is None:
             occludedSaveFile = ""
 
-        newResult = Result(file, outfolder, occludedSaveFile)
+        newResult = Result(file.name, outfolder, occludedSaveFile)
 
         s = time.time()
 
@@ -118,21 +118,21 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
 
         if catalogue:
 
-            tmpmask = pixelmap(img, newResult.sky + newResult.sky_err, 3)
+            tmpmask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize)
             objlist = []
             newResult.star_flag, objlist = objectOccluded(tmpmask, file.name, catalogue, header)
             if newResult.star_flag:
                 for i, obj in enumerate(objlist):
                     if i == 0:
-                        objwriter.writerow([f"{file}", obj[0], obj[1], obj[2]])
+                        objwriter.writerow([f"{file.name}", obj[0], obj[1], obj[2]])
                     else:
                         objwriter.writerow(["", obj[0], obj[1], obj[2]])
 
             starMask = maskstarsPSF(img, objlist, header, newResult.sky)
             newResult.starMask = starMask
-            mask = pixelmap(img, newResult.sky + newResult.sky_err, 3, starMask)
+            mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
         else:
-            mask = pixelmap(img, newResult.sky + newResult.sky_err, 3)
+            mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize)
             starMask = np.ones_like(img)
 
         img -= newResult.sky
@@ -172,7 +172,8 @@ def calcMorphology(files, outfolder, asymmetry=False, shapeAsymmetry=False,
 
         if shapeAsymmetry or allAsymmetry:
             newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
-            newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, 90., starMask)
+            angle = 90.
+            newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
 
         if calculateSersic:
             p = fitSersic(img, newResult.apix, newResult.fwhms, newResult.theta)

@@ -28,6 +28,9 @@ if __name__ == '__main__':
                          analysed object.")
     parser.add_argument("-sersic", "--sersic", action="store_true",
                         help="Calculate sersic profile.")
+    parser.add_argument("-fs", "--filtersize", type=int, default=3,
+                        choices=[1, 3, 5, 7, 9, 11, 13, 15],
+                        help="Size of kernel for mean filter")
 
     args = parser.parse_args()
 
@@ -44,7 +47,8 @@ if __name__ == '__main__':
                                         saveCleanImage=args.savecleanimg,
                                         imageSource=args.imgsource,
                                         largeImage=args.largeimage,
-                                        catalogue=args.catalogue)
+                                        catalogue=args.catalogue,
+                                        filterSize=args.filtersize)
 
     print(" ")
     for i in results:

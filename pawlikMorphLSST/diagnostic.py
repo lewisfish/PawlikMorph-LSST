@@ -319,6 +319,6 @@ def make_figure(result, save=False):
     plt.subplots_adjust(top=0.975, bottom=0.005, left=0.003, right=0.997, hspace=0.050, wspace=0.006)
 
     if save:
-        plt.savefig("results/result_" + result.file.name[11:-11] + ".png", dpi=96)
+        plt.savefig("results/result_" + result.file[11:-11] + ".png", dpi=96)
     # plt.show()
     plt.close()
