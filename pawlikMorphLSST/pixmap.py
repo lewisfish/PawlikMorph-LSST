@@ -36,7 +36,7 @@ def pixelmap(image: np.ndarray, threshold: float, filterSize: int,
     imageTmp = image * starMask
 
     if filterSize % 2 == 0:
-        print("ERROR! Filter can not be of even size.")
+        print("ERROR! Filter can not be of an even size.")
         sys.exit()
 
     imgsize = imageTmp.shape[0]

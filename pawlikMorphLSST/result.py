@@ -7,21 +7,25 @@ from typing import List, Tuple, Any
 class Result:
     '''Class that stores the results of image analysis'''
 
+    # names of files and folders used or generated in anaylsis
     file: str
     outfolder: Any
     occludedFile: str
     pixelMapFile: Any = ""
     cleanImage: Any = ""
     starMask: Any = ""
+    # Calculated asymmetry values
     A: List[float] = field(default_factory=lambda: [-99., -99.])
     As: List[float] = field(default_factory=lambda: [-99., -99.])
     As90: List[float] = field(default_factory=lambda: [-99., -99.])
+    # Misc calculated values 
     rmax: float = -99
     apix: Tuple[float] = (-99., -99.)
     sky: float = -99.
     sky_err: float = 99.
     fwhms: List[float] = field(default_factory=lambda: [-99., -99.])
     theta: float = -99.
+    # Sersic fit values
     sersic_amplitude: float = -99.
     sersic_r_eff: float = -99.
     sersic_n: float = -99.

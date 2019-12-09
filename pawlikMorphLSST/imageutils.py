@@ -13,7 +13,7 @@ from photutils import detect_threshold, detect_sources, CircularAperture
 __all__ = ["maskstarsSEG", "maskstarsPSF"]
 
 
-def inBbox(extent: List[float], point: List[float]) -> bool:
+def _inBbox(extent: List[float], point: List[float]) -> bool:
     ''' Check if a point is in a box defined by the bounds extent
 
     Parameters
@@ -61,6 +61,7 @@ def maskstarsSEG(image: np.ndarray):
     mean, median, std = sigma_clipped_stats(image, sigma=3.)
 
     # create segmentation map
+    # TODO give user option to specify kernel and/or size of kernel?
     imageClean = np.copy(image)
     threshold = detect_threshold(image, 1.5)
     sigma = 3.0 * gaussian_fwhm_to_sigma
@@ -72,7 +73,7 @@ def maskstarsSEG(image: np.ndarray):
     stars = []
     for i, segment in enumerate(segm.segments):
 
-        if not inBbox(segment.bbox.extent, cenpix):
+        if not _inBbox(segment.bbox.extent, cenpix):
             stars.append(i)
 
     # clean image of external sources
@@ -131,9 +132,10 @@ def _calculateRadius(psf, counts, sigma):
     return sigma * np.sqrt(2. * np.log(counts / psf))
 
 
-def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float, 
+def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
                  numSigmas=5.) -> np.ndarray:
-    '''Function that uses the PSF to mask stars.
+    '''Function that uses the PSF to estimate stars radius and then masks them
+       from the image mask stars.
 
     Parameters
     ----------
@@ -169,13 +171,14 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
     kk = header["PHT_KK"]              # extinction coefficient
     airMass = header["AIRMASS"]        # airmass
     softwareBias = header["SOFTBIAS"]  # software bias added to pixel counts
+    b = header["PHT_B"]                # softening parameter
 
     skyCount -= softwareBias
 
     # https://classic.sdss.org/dr7/algorithms/fluxcal.html#counts2mag
     factor = 0.4*(aa + kk*airMass)
     skyFluxRatio = ((skyCount) / expTime) * 10**(factor)
-    skyMag = -2.5 * np.log10(skyFluxRatio)
+    skyMag = -(2.5 / np.log(10.)) * (np.arcsinh((skyFluxRatio) / (2*b)) + np.log(b))
 
     with warnings.catch_warnings():
         # ignore invalid card warnings

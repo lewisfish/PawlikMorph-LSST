@@ -21,8 +21,9 @@ from .pixmap import pixelmap
 __all__ = ["calcMorphology"]
 
 
-def calcMorphology(files, outfolder, filterSize, asymmetry=False, shapeAsymmetry=False,
-                   allAsymmetry=True, calculateSersic=False, savePixelMap=True,
+def calcMorphology(files, outfolder, filterSize, asymmetry=False,
+                   shapeAsymmetry=False, allAsymmetry=True,
+                   calculateSersic=False, savePixelMap=True,
                    saveCleanImage=True, imageSource=None, catalogue=None,
                    largeImage=False, paramsaveFile="parameters.csv",
                    occludedSaveFile="occluded-object-locations.csv"):
@@ -54,7 +55,8 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False, shapeAsymmetry
     paramsaveFile: str or Path object
         Name of file where calculated files are to be written
     occludedSaveFile: str or Path object
-        Name of file where objects that occlude the object of interest are saved
+        Name of file where objects that occlude the object of interest are
+        saved
 
     Returns
     -------
@@ -67,10 +69,11 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False, shapeAsymmetry
     outfile = outfolder / paramsaveFile
     csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
-    paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A", "Abgr",
-                          "As", "As90", "fwhms", "theta", "sersic_amplitude",
-                          "sersic_r_eff", "sersic_n", "sersic_x_0", "sersic_y_0",
-                          "sersic_ellip", "sersic_theta", "time", "star_flag"])
+    paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A",
+                          "Abgr", "As", "As90", "fwhms", "theta",
+                          "sersic_amplitude", "sersic_r_eff", "sersic_n",
+                          "sersic_x_0", "sersic_y_0", "sersic_ellip",
+                          "sersic_theta", "time", "star_flag"])
 
     if catalogue:
         outfile = outfolder / occludedSaveFile
@@ -89,6 +92,7 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False, shapeAsymmetry
             print(f"File {file}, does not exist!")
             continue
         except AttributeError as e:
+            # Skip file if error is raised
             continue
 
         # convert image data type to float64 so that later calculations do not
@@ -117,17 +121,23 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False, shapeAsymmetry
             continue
 
         if catalogue:
+            # if a star catalogue is provided calculate pixelmap and then see
+            # if any star in catalogue overlaps pixelmap
+            tmpmask = pixelmap(img, newResult.sky + newResult.sky_err,
+                               filterSize)
 
-            tmpmask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize)
             objlist = []
-            newResult.star_flag, objlist = objectOccluded(tmpmask, file.name, catalogue, header)
+            newResult.star_flag, objlist = objectOccluded(tmpmask, file.name,
+                                                          catalogue, header)
             if newResult.star_flag:
                 for i, obj in enumerate(objlist):
                     if i == 0:
+                        # obj[0] = RA, obj[1] = DEC, obj[2] = TYPE, obj[3] = psfMag_r
                         objwriter.writerow([f"{file.name}", obj[0], obj[1], obj[2]])
                     else:
                         objwriter.writerow(["", obj[0], obj[1], obj[2]])
 
+            # remove star using images PSF to estimate stars radius
             starMask = maskstarsPSF(img, objlist, header, newResult.sky)
             newResult.starMask = starMask
             mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
@@ -164,6 +174,7 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False, shapeAsymmetry
         newResult.rmax = np.max(objectdist)
         aperturepixmap = aperpixmap(imgsize, newResult.rmax, 9, 0.1)
 
+        # get centre of asymmetry
         newResult.apix = minapix(img, mask, aperturepixmap, starMask)
         angle = 180.
 
@@ -190,6 +201,8 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False, shapeAsymmetry
         newResult.time = timetaken
         newResult.write(paramwriter)
         results.append(newResult)
+
+        print("")
 
     if catalogue:
         objcsvfile.close()

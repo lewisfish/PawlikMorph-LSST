@@ -1,3 +1,4 @@
+from typing import List
 import warnings
 
 import numpy as np
@@ -62,7 +63,34 @@ def _supressAxs(ax):
     return ax
 
 
-def _getStarsOccludObject(file, header, outfolder, occludedFile):
+def _getStarsOccludObject(file: str, header, outfolder, occludedFile: str) -> List[List[float]]:
+    '''Function returns list of stars in an image from a given catalogue
+
+    Parameters
+    ----------
+
+    file : str
+        Name of Image to detect stars in
+
+    header : astropy.io.fits.header.Header object
+        Header from image file that gives the relevant wcs information
+
+    outfolder : Posix Path
+        Output folder of the analysis
+
+    occludedFile : str
+        catalogue file in csv format. Should follow the following format:
+        names, RA, DEC, other values
+        Where names is the name of the image file, RA is the right ascension of
+        the star, and DEC is the declination of the star
+
+    Returns
+    -------
+
+    occludingStars : List[List[float]]
+        List of [RA, DEC] of the star(s), if any, known to be in the image
+
+    '''
 
     starcat = outfolder / occludedFile
     try:

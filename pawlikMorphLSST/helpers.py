@@ -62,6 +62,9 @@ def checkFile(filename):
     # assumes little endian. https://stackoverflow.com/a/30284033/6106938
     # https://en.wikipedia.org/wiki/Endianness
     img = img.byteswap().newbyteorder()
+
+    # check image is square
+    # TODO add support of rectangular images?
     if img.shape[0] != img.shape[1]:
         raise _ImageSizeException(filename)
 

@@ -41,10 +41,14 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
         The minimum asymmetry pixel position.
     """
 
+    # mask the image with object mask and star mask if provided
     imageMask = image * mask * starMask
-    TWENTYPERCENTFLUX = 0.2
 
-    twentyPercentFlux = TWENTYPERCENTFLUX * np.sum(imageMask)
+    # only want top 20% brightest pixels
+    TWENTYPERCENT = 0.2
+
+    # calculate flux percentage and sort pixels by flux value
+    twentyPercentFlux = TWENTYPERCENT * np.sum(imageMask)
     imageMaskRavel = np.ravel(imageMask)
     sortedImageMask = np.sort(imageMaskRavel)[::-1]
     sortedIndices = np.argsort(imageMaskRavel)[::-1]
@@ -52,6 +56,7 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
     count = 0
     fluxSum = 0
     centroidCandidates = []
+    # Generate centroid candidates from brightest 20% pixels
     for j, pixel in enumerate(sortedImageMask):
         x, y = np.unravel_index(sortedIndices[j], shape=image.shape)
         if pixel > 0:
@@ -64,6 +69,7 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
     imageRavel = np.ravel(image)
     a = np.zeros(count)
 
+    # test centroid candidates for minima of asymmetry
     for i, point in enumerate(centroidCandidates):
         imageRotate = transform.rotate(image, 180., center=point, preserve_range=True)
         imageResidual = np.abs(image - imageRotate)

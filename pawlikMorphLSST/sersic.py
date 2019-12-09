@@ -7,7 +7,7 @@ __all__ = ["fitSersic"]
 
 
 def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float], theta: float):
-    '''Function that fits a 2D sersic function to an image.
+    '''Function that fits a 2D sersic function to an image of a Galaxy.
 
     Parameters
     ----------
@@ -26,7 +26,7 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float], thet
 
     Parameters : astropy.modeling.Model object
 
-        Collection of best fir parameters for the 2D sersic function
+        Collection of best fit parameters for the 2D sersic function
 
     '''
 
@@ -38,6 +38,7 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float], thet
 
     ellip = (max(fwhms) - min(fwhms)) / max(fwhms)
 
+    # TODO better guess of intial values?
     sersic_init = models.Sersic2D(amplitude=np.mean(image), r_eff=max(fwhms), n=1.5, x_0=centroid[0], y_0=centroid[1],
                                   ellip=ellip, theta=theta)
     ny, nx = image.shape

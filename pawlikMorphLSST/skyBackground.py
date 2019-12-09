@@ -32,27 +32,43 @@ class _SkyError(_Error):
 
 
 def skybgr(img: np.ndarray, imgsize: int, file, largeImage: bool,
-           imageSource: str) -> Tuple[float]:
+           imageSource: str) -> Tuple[float, float, List[float], float]:
     '''Helper function for calculating skybgr
 
     Parameters
     ----------
 
     img: np.ndarray
+        image from which a sky background will be calculated
 
     imgsize: int
+        size of the image. Image is square so this is for one dimension
 
     file: Path object
+        Path to image
 
     largeImage : bool
+        If true algorithm uses larger image to estimate sky background.
+        If False uses provided image.
 
     imgSource : str
-
+        Telescope source of the image. Default is SDSS
 
     Returns
     -------
 
-    sky, sky_err: Tuple[float]
+    sky : float
+        Estimation of the sky background value in counts
+
+    sky_err : float
+        Error in sky background value in counts
+
+    fwhms : List[float]
+        FWHM in x and y direction of the fitted Gaussian.
+
+    theta : float
+        Angle of the fitted Gaussian in radians measured from the +ive x axis
+        anticlockwise
 
     '''
 
@@ -316,7 +332,7 @@ def _altgauss2dfit(image: np.ndarray, imgsize: float) -> models:
     Returns
     -------
 
-    g : astropy.modeling.functional_models.Gaussian2D class
+    fit_parameters : astropy.modeling.functional_models.Gaussian2D class
         Model parameters of fitted Gaussian.
 
     '''
@@ -361,6 +377,6 @@ def _altgauss2dfit(image: np.ndarray, imgsize: float) -> models:
     # fit model
     w = models.Gaussian2D(amp, x0, y0, sigmax, sigmay, angle)
     yi, xi = np.indices(imageOld.shape)
-    g = fit_w(w, xi, yi, imageOld)
+    fit_parameters = fit_w(w, xi, yi, imageOld)
 
-    return g
+    return fit_parameters
