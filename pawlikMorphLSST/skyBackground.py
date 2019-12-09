@@ -31,6 +31,7 @@ class _SkyError(_Error):
         raise AttributeError
 
 
+# TODO make file optional
 def skybgr(img: np.ndarray, imgsize: int, file, largeImage: bool,
            imageSource: str) -> Tuple[float, float, List[float], float]:
     '''Helper function for calculating skybgr
@@ -203,10 +204,13 @@ def _fitGauss(img: np.ndarray, smallimg: bool) -> Tuple[float, List[float], floa
 
     # convert theta to radians and correct quadrant for Sersic fit
     # Theta is now measured anticlockwise from +ive x axis
-    thetaDeg = theta / (2.*np.pi)
-    n = int(thetaDeg)
-    r = (thetaDeg) - n
-    theta = (r * 2.*np.pi) - np.pi/2.
+    if theta < (np.pi/2.):
+        theta = np.pi - theta
+    else:
+        thetaDeg = theta / (2.*np.pi)
+        n = int(thetaDeg)
+        r = (thetaDeg) - n
+        theta = (r * 2.*np.pi) - (np.pi/2.)
 
     return r_in, [fwhm_x, fwhm_y], theta
 
