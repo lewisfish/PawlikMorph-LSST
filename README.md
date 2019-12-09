@@ -1,11 +1,11 @@
 # PawlikMorph-LSST
 Translation and optimisation of SEDMORPH's [PawlikMorph](https://github.com/SEDMORPH/PawlikMorph) IDL code for analysing images of galaxies from SDSS data release 7
 
-Replicates the ability to prepare images, generate object binary masks and calculate the A, As, and As90 asymmetry parameters.
+Replicates the ability to prepare images, generate object binary masks and calculate the A, As, As90 asymmetry parameters, and Sersic parameters.
 
 ## Usage
 
-./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sci] [-li] [-src {sdss,hsc}] [-cc CATALOGUE] [-sersic]
+./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sci] [-li] [-src {sdss,hsc}] [-cc CATALOGUE] [-sersic] [-fs {1, 3, 5, 7, 9, 11, 13, 15}]
 
 
  - -h, shows the help screen
@@ -20,6 +20,7 @@ Replicates the ability to prepare images, generate object binary masks and calcu
  - -src, Source of the image
  - -cc, Check if any object in the provided catalogue occludes the analysed object
  - -sersic, Calculate Sersic profile
+ - -fs, Size of kernel for mean filter
  
  Example
   - ./imganalysis.py -fo sample/data -Aall -spm -sci -src sdss -li -sersic
@@ -41,6 +42,9 @@ First clone this repo. Then either use pip or conda to install dependencies:
  - Scikit-image 0.14.0+
  - Pandas 0.25.3+
  - photutils 0.7.1+
+ 
+ If diagnostic.py is used 
+ - matplotlib
  
  ## TODO
   - [x] Calculate Asymmetry
