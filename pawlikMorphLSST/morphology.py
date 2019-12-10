@@ -2,8 +2,12 @@ import csv
 import time
 
 import numpy as np
+import parsl
 
 from astropy.io import fits
+from parsl.app.app import python_app
+from parsl.config import Config
+from parsl.executors.threads import ThreadPoolExecutor
 
 from .apertures import aperpixmap
 from .apertures import distarr
@@ -81,130 +85,158 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
         objwriter = csv.writer(objcsvfile, delimiter=",")
         objwriter.writerow(["file", "ra", "dec", "type"])
 
-    results = []
+    outputs = []
+
+    local_threads = Config(
+        executors=[
+            ThreadPoolExecutor(
+                max_threads=8,
+                label='local_threads'
+            )
+        ]
+    )
+    parsl.clear()
+    parsl.load(local_threads)
 
     for file in files:
+        newResult = _analyseImage(file, outfolder, filterSize, asymmetry,
+                                  shapeAsymmetry, allAsymmetry,
+                                  calculateSersic, savePixelMap,
+                                  saveCleanImage, imageSource, catalogue,
+                                  largeImage, paramsaveFile, occludedSaveFile)
+        outputs.append(newResult)
 
-        print(file)
-        try:
-            img, header, imgsize = checkFile(file)
-        except IOError:
-            print(f"File {file}, does not exist!")
-            continue
-        except AttributeError as e:
-            # Skip file if error is raised
-            continue
+    # Wait for all apps to finish and collect the results
+    results = [i.result() for i in outputs]
 
-        # convert image data type to float64 so that later calculations do not
-        # raise exceptions
-        img = img.astype(np.float64)
-
-        if catalogue is None:
-            occludedSaveFile = ""
-
-        newResult = Result(file.name, outfolder, occludedSaveFile)
-
-        s = time.time()
-
-        # get sky background value and error
-        try:
-            newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(img, imgsize, file, largeImage, imageSource)
-        except AttributeError:
-            # TODO can fail silently if some other attribute error is raised!
-            newResult.write(paramwriter)
-            filename = file.name
-            filename = "pixelmap_" + filename
-            outfile = outfolder / filename
-            hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
-            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
-            print(" ")
-            continue
-
-        if catalogue:
-            # if a star catalogue is provided calculate pixelmap and then see
-            # if any star in catalogue overlaps pixelmap
-            tmpmask = pixelmap(img, newResult.sky + newResult.sky_err,
-                               filterSize)
-
-            objlist = []
-            newResult.star_flag, objlist = objectOccluded(tmpmask, file.name,
-                                                          catalogue, header)
-            if newResult.star_flag:
-                for i, obj in enumerate(objlist):
-                    if i == 0:
-                        # obj[0] = RA, obj[1] = DEC, obj[2] = TYPE, obj[3] = psfMag_r
-                        objwriter.writerow([f"{file.name}", obj[0], obj[1], obj[2]])
-                    else:
-                        objwriter.writerow(["", obj[0], obj[1], obj[2]])
-
-            # remove star using images PSF to estimate stars radius
-            starMask = maskstarsPSF(img, objlist, header, newResult.sky)
-            newResult.starMask = starMask
-            mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
-        else:
-            mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize)
-            starMask = np.ones_like(img)
-
-        img -= newResult.sky
-
-        # clean image of external sources
-        img = maskstarsSEG(img)
-
-        if saveCleanImage:
-            filename = file.name
-            filename = "clean_" + filename
-            outfile = outfolder / filename
-            newResult.cleanImage = outfile
-            hdu = fits.PrimaryHDU(data=img, header=header)
-            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
-
-        if savePixelMap:
-            filename = file.name
-            filename = "pixelmap_" + filename
-            outfile = outfolder / filename
-            newResult.pixelMapFile = outfile
-            hdu = fits.PrimaryHDU(data=mask, header=header)
-            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
-
-        objectpix = np.nonzero(mask == 1)
-        cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
-
-        distarray = distarr(imgsize, imgsize, cenpix)
-        objectdist = distarray[objectpix]
-        newResult.rmax = np.max(objectdist)
-        aperturepixmap = aperpixmap(imgsize, newResult.rmax, 9, 0.1)
-
-        # get centre of asymmetry
-        newResult.apix = minapix(img, mask, aperturepixmap, starMask)
-        angle = 180.
-
-        if asymmetry or allAsymmetry:
-            newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
-
-        if shapeAsymmetry or allAsymmetry:
-            newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
-            angle = 90.
-            newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
-
-        if calculateSersic:
-            p = fitSersic(img, newResult.apix, newResult.fwhms, newResult.theta)
-            newResult.sersic_amplitude = p.amplitude.value
-            newResult.sersic_r_eff = p.r_eff.value
-            newResult.sersic_ellip = p.ellip.value
-            newResult.sersic_n = p.n.value
-            newResult.sersic_theta = p.theta.value
-            newResult.sersic_x_0 = p.x_0.value
-            newResult.sersic_y_0 = p.y_0.value
-
-        f = time.time()
-        timetaken = f - s
-        newResult.time = timetaken
-        newResult.write(paramwriter)
-        results.append(newResult)
-
-        print("")
+    # write out results
+    for result in results:
+        result.write(paramwriter)
 
     if catalogue:
         objcsvfile.close()
     csvfile.close()
     return results
+
+
+@python_app
+def _analyseImage(file, outfolder, filterSize, asymmetry,
+                  shapeAsymmetry, allAsymmetry,
+                  calculateSersic, savePixelMap,
+                  saveCleanImage, imageSource, catalogue,
+                  largeImage, paramsaveFile, occludedSaveFile):
+
+    print(file)
+    if catalogue is None:
+        occludedSaveFile = ""
+    newResult = Result(file.name, outfolder, occludedSaveFile)
+
+    try:
+        img, header, imgsize = checkFile(file)
+    except IOError:
+        print(f"File {file}, does not exist!")
+        return newResult
+    except AttributeError as e:
+        # Skip file if error is raised
+        return newResult
+
+    # convert image data type to float64 so that later calculations do not
+    # raise exceptions
+    img = img.astype(np.float64)
+
+    s = time.time()
+
+    # get sky background value and error
+    try:
+        newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(img, imgsize, file, largeImage, imageSource)
+    except AttributeError:
+        # TODO can fail silently if some other attribute error is raised!
+        filename = file.name
+        filename = "pixelmap_" + filename
+        outfile = outfolder / filename
+        hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
+        hdu.writeto(outfile, overwrite=True, output_verify='ignore')
+        print(" ")
+        return newResult
+
+    if catalogue:
+        # if a star catalogue is provided calculate pixelmap and then see
+        # if any star in catalogue overlaps pixelmap
+        tmpmask = pixelmap(img, newResult.sky + newResult.sky_err,
+                           filterSize)
+
+        objlist = []
+        newResult.star_flag, objlist = objectOccluded(tmpmask, file.name,
+                                                      catalogue, header)
+        if newResult.star_flag:
+            for i, obj in enumerate(objlist):
+                if i == 0:
+                    # obj[0] = RA, obj[1] = DEC, obj[2] = TYPE, obj[3] = psfMag_r
+                    objwriter.writerow([f"{file.name}", obj[0], obj[1], obj[2]])
+                else:
+                    objwriter.writerow(["", obj[0], obj[1], obj[2]])
+
+        # remove star using images PSF to estimate stars radius
+        starMask = maskstarsPSF(img, objlist, header, newResult.sky)
+        newResult.starMask = starMask
+        mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
+    else:
+        mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize)
+        starMask = np.ones_like(img)
+
+    img -= newResult.sky
+
+    # clean image of external sources
+    img = maskstarsSEG(img)
+
+    if saveCleanImage:
+        filename = file.name
+        filename = "clean_" + filename
+        outfile = outfolder / filename
+        newResult.cleanImage = outfile
+        hdu = fits.PrimaryHDU(data=img, header=header)
+        hdu.writeto(outfile, overwrite=True, output_verify='ignore')
+
+    if savePixelMap:
+        filename = file.name
+        filename = "pixelmap_" + filename
+        outfile = outfolder / filename
+        newResult.pixelMapFile = outfile
+        hdu = fits.PrimaryHDU(data=mask, header=header)
+        hdu.writeto(outfile, overwrite=True, output_verify='ignore')
+
+    objectpix = np.nonzero(mask == 1)
+    cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
+
+    distarray = distarr(imgsize, imgsize, cenpix)
+    objectdist = distarray[objectpix]
+    newResult.rmax = np.max(objectdist)
+    aperturepixmap = aperpixmap(imgsize, newResult.rmax, 9, 0.1)
+
+    # get centre of asymmetry
+    newResult.apix = minapix(img, mask, aperturepixmap, starMask)
+    angle = 180.
+
+    if asymmetry or allAsymmetry:
+        newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
+
+    if shapeAsymmetry or allAsymmetry:
+        newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
+        angle = 90.
+        newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
+
+    if calculateSersic:
+        p = fitSersic(img, newResult.apix, newResult.fwhms, newResult.theta)
+        newResult.sersic_amplitude = p.amplitude.value
+        newResult.sersic_r_eff = p.r_eff.value
+        newResult.sersic_ellip = p.ellip.value
+        newResult.sersic_n = p.n.value
+        newResult.sersic_theta = p.theta.value
+        newResult.sersic_x_0 = p.x_0.value
+        newResult.sersic_y_0 = p.y_0.value
+
+    f = time.time()
+    timetaken = f - s
+    newResult.time = timetaken
+
+    return newResult

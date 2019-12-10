@@ -56,8 +56,8 @@ def checkFile(filename):
     with warnings.catch_warnings():
         # ignore invalid card warnings
         warnings.simplefilter('ignore', category=AstropyWarning)
-
         img, header = fits.getdata(filename, header=True)
+
     # The following is required as fits files are big endian and skimage
     # assumes little endian. https://stackoverflow.com/a/30284033/6106938
     # https://en.wikipedia.org/wiki/Endianness
