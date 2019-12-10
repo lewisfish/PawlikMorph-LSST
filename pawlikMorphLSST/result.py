@@ -14,11 +14,12 @@ class Result:
     pixelMapFile: Any = ""
     cleanImage: Any = ""
     starMask: Any = ""
+    objList: Any = field(default_factory=lambda: [-99.])
     # Calculated asymmetry values
     A: List[float] = field(default_factory=lambda: [-99., -99.])
     As: List[float] = field(default_factory=lambda: [-99., -99.])
     As90: List[float] = field(default_factory=lambda: [-99., -99.])
-    # Misc calculated values 
+    # Misc calculated values
     rmax: float = -99
     apix: Tuple[float] = (-99., -99.)
     sky: float = -99.

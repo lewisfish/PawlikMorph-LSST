@@ -1,13 +1,12 @@
 import csv
 import time
+from multiprocessing import Pool
 
 import numpy as np
-import parsl
+
 
 from astropy.io import fits
-from parsl.app.app import python_app
-from parsl.config import Config
-from parsl.executors.threads import ThreadPoolExecutor
+
 
 from .apertures import aperpixmap
 from .apertures import distarr
@@ -23,6 +22,15 @@ from .skyBackground import skybgr
 from .pixmap import pixelmap
 
 __all__ = ["calcMorphology"]
+
+
+class Engine(object):
+    """docstring for Engine"""
+    def __init__(self, parameters):
+        self.parameters = parameters
+
+    def __call__(self, filename):
+        return _analyseImage(filename, *self.parameters)
 
 
 def calcMorphology(files, outfolder, filterSize, asymmetry=False,
@@ -85,33 +93,27 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
         objwriter = csv.writer(objcsvfile, delimiter=",")
         objwriter.writerow(["file", "ra", "dec", "type"])
 
-    outputs = []
-
-    local_threads = Config(
-        executors=[
-            ThreadPoolExecutor(
-                max_threads=8,
-                label='local_threads'
-            )
-        ]
-    )
-    parsl.clear()
-    parsl.load(local_threads)
-
-    for file in files:
-        newResult = _analyseImage(file, outfolder, filterSize, asymmetry,
-                                  shapeAsymmetry, allAsymmetry,
-                                  calculateSersic, savePixelMap,
-                                  saveCleanImage, imageSource, catalogue,
-                                  largeImage, paramsaveFile, occludedSaveFile)
-        outputs.append(newResult)
-
-    # Wait for all apps to finish and collect the results
-    results = [i.result() for i in outputs]
+    # https://stackoverflow.com/questions/20190668/multiprocessing-a-for-loop
+    pool = Pool(7)
+    engine = Engine([outfolder, filterSize, asymmetry,
+                     shapeAsymmetry, allAsymmetry,
+                     calculateSersic, savePixelMap,
+                     saveCleanImage, imageSource, catalogue,
+                     largeImage, paramsaveFile, occludedSaveFile])
+    results = pool.map(engine, files)
+    pool.close()
+    pool.join()
 
     # write out results
     for result in results:
         result.write(paramwriter)
+        if result.star_flag:
+            for i, obj in enumerate(result.objList):
+                if i == 0:
+                    # obj[0] = RA, obj[1] = DEC, obj[2] = TYPE, obj[3] = psfMag_r
+                    objwriter.writerow([f"{result.file}", obj[0], obj[1], obj[2]])
+                else:
+                    objwriter.writerow(["", obj[0], obj[1], obj[2]])
 
     if catalogue:
         objcsvfile.close()
@@ -119,7 +121,6 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
     return results
 
 
-@python_app
 def _analyseImage(file, outfolder, filterSize, asymmetry,
                   shapeAsymmetry, allAsymmetry,
                   calculateSersic, savePixelMap,
@@ -165,19 +166,11 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
         tmpmask = pixelmap(img, newResult.sky + newResult.sky_err,
                            filterSize)
 
-        objlist = []
-        newResult.star_flag, objlist = objectOccluded(tmpmask, file.name,
-                                                      catalogue, header)
-        if newResult.star_flag:
-            for i, obj in enumerate(objlist):
-                if i == 0:
-                    # obj[0] = RA, obj[1] = DEC, obj[2] = TYPE, obj[3] = psfMag_r
-                    objwriter.writerow([f"{file.name}", obj[0], obj[1], obj[2]])
-                else:
-                    objwriter.writerow(["", obj[0], obj[1], obj[2]])
+        newResult.star_flag, newResult.objList = objectOccluded(tmpmask, file.name,
+                                                                catalogue, header)
 
         # remove star using images PSF to estimate stars radius
-        starMask = maskstarsPSF(img, objlist, header, newResult.sky)
+        starMask = maskstarsPSF(img, newResult.objList, header, newResult.sky)
         newResult.starMask = starMask
         mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
     else:

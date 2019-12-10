@@ -312,10 +312,15 @@ def make_figure(result, save=False):
     with warnings.catch_warnings():
         # ignore invalid card warnings
         warnings.simplefilter('ignore', category=AstropyWarning)
-        img, header = fits.getdata(result.cleanImage, header=True)
+        try:
+            img, header = fits.getdata(result.cleanImage, header=True)
+        except ValueError:
+            img, header = fits.getdata(result.outfolder.parent / "data" / result.file, header=True)
 
-        filemask = result.pixelMapFile
-        mask = fits.getdata(filemask)
+        try:
+            mask = fits.getdata(result.pixelMapFile)
+        except ValueError:
+            mask = fits.getdata(result.outfolder / ("pixelmap_" + result.file))
 
     if result.occludedFile != "":
         listofStarstoPlot = _getStarsOccludObject(result.file, header, result.outfolder, result.occludedFile)
@@ -348,5 +353,4 @@ def make_figure(result, save=False):
 
     if save:
         plt.savefig("results/result_" + result.file[11:-11] + ".png", dpi=96)
-    # plt.show()
     plt.close()
