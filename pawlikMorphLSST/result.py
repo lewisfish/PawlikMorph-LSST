@@ -14,7 +14,7 @@ class Result:
     pixelMapFile: Any = ""
     cleanImage: Any = ""
     starMask: Any = ""
-    objList: Any = field(default_factory=lambda: [-99.])
+    objList: Any = field(default_factory=lambda: [])
     # Calculated asymmetry values
     A: List[float] = field(default_factory=lambda: [-99., -99.])
     As: List[float] = field(default_factory=lambda: [-99., -99.])

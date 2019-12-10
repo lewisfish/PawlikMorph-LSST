@@ -3,10 +3,7 @@ import time
 from multiprocessing import Pool
 
 import numpy as np
-
-
 from astropy.io import fits
-
 
 from .apertures import aperpixmap
 from .apertures import distarr
@@ -25,11 +22,17 @@ __all__ = ["calcMorphology"]
 
 
 class Engine(object):
-    """docstring for Engine"""
+    '''Class existences so that Pool method can be used on _analyseImage.
+       Basically a way to pass the function arguments that are he same with
+       one variable argument, i.e the file name'''
+
     def __init__(self, parameters):
+        '''This sets the arguments for the function passed to pool via
+           engine'''
         self.parameters = parameters
 
     def __call__(self, filename):
+        '''This calls the function when engine is called on pool'''
         return _analyseImage(filename, *self.parameters)
 
 
@@ -94,7 +97,7 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
         objwriter.writerow(["file", "ra", "dec", "type"])
 
     # https://stackoverflow.com/questions/20190668/multiprocessing-a-for-loop
-    pool = Pool(7)
+    pool = Pool(6)
     engine = Engine([outfolder, filterSize, asymmetry,
                      shapeAsymmetry, allAsymmetry,
                      calculateSersic, savePixelMap,

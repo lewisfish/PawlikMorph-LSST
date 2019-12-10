@@ -63,76 +63,39 @@ def _supressAxs(ax):
     return ax
 
 
-def _getStarsOccludObject(file: str, header, outfolder, occludedFile: str) -> List[List[float]]:
-    '''Function returns list of stars in an image from a given catalogue
+def RADECtopixel(objList: List[List[float]], header) -> List[List[float]]:
+    '''Function to convert RA DEC in objList to pixel coordinates using
+       wcs in header of image
 
     Parameters
     ----------
 
-    file : str
-        Name of Image to detect stars in
+    objList : List[List[float]]
+        List of list of RA, DEC, object type and psfMag_r
 
-    header : astropy.io.fits.header.Header object
-        Header from image file that gives the relevant wcs information
-
-    outfolder : Posix Path
-        Output folder of the analysis
-
-    occludedFile : str
-        catalogue file in csv format. Should follow the following format:
-        names, RA, DEC, other values
-        Where names is the name of the image file, RA is the right ascension of
-        the star, and DEC is the declination of the star
+    header : 
 
     Returns
     -------
 
     occludingStars : List[List[float]]
-        List of [RA, DEC] of the star(s), if any, known to be in the image
-
+        List of RA, DEC in pixel coordinates.
     '''
 
-    starcat = outfolder / occludedFile
-    try:
-        names, RAs, DECs, *rest = np.loadtxt(starcat, unpack=True, skiprows=1,
-                                             delimiter=",", dtype=str)
-    except ValueError:
-        print(f"{starcat} file empty!")
-        return []
-
-    # If there is only one entry in csv file then loadtxt returns str for each
-    # variable. Thefore we check if length of names and RAs match, if they dont
-    # match put str in a list else just turn names into a list as other should
-    # already be a list
-    if len(RAs) != len(names):
-        names = [names]
-        RAs = [RAs]
-        DECs = [DECs]
-    else:
-        names = list(names)
     occludingStars = []
 
-    try:
-        ind = names.index(str(file))
-        with warnings.catch_warnings():
-            # ignore invalid card warnings
-            warnings.simplefilter('ignore', category=AstropyWarning)
-            w = wcs.WCS(header)
+    with warnings.catch_warnings():
+        # ignore invalid card warnings
+        warnings.simplefilter('ignore', category=AstropyWarning)
+        w = wcs.WCS(header)
 
-        skyCoordPos = SkyCoord(RAs[ind], DECs[ind], unit="deg")
+    RAS = [item[0] for item in objList]
+    DECS = [item[1] for item in objList]
+
+    for ra, dec in zip(RAS, DECS):
+        skyCoordPos = SkyCoord(ra, dec, unit="deg")
         x, y = wcs.utils.skycoord_to_pixel(skyCoordPos, wcs=w)
         occludingStars.append([x, y])
-
-        for i in range(1, len(names) - ind):
-            if names[ind + i] == "":
-                skyCoordPos = SkyCoord(RAs[ind+i], DECs[ind+i], unit="deg")
-                x, y = wcs.utils.skycoord_to_pixel(skyCoordPos, wcs=w)
-                occludingStars.append([x, y])
-            else:
-                break
-
-    except ValueError:
-        return occludingStars
 
     return occludingStars
 
@@ -149,7 +112,7 @@ def make_oneone(ax, img, result):
         image data to be plotted
 
     results : Result dataclass
-        dataclasss of calculated results for object
+        dataclass of calculated results for object
 
     Returns
     -------
@@ -160,6 +123,7 @@ def make_oneone(ax, img, result):
 
     ax.imshow(log_stretch(_normalise(img)), origin="lower", aspect="auto")
     ax.scatter(result.apix[0], result.apix[1], label="Asym. centre")
+    ax.set_xlim([-0.5, img.shape[0]+0.5])
     ax.set_title("Cleaned Image")
 
     text = f"Sky={result.sky:.2f}\n" fr"Sky $\sigma$={result.sky_err:.2f}"
@@ -173,13 +137,13 @@ def make_onetwo(ax, mask, result):
     Parameters
     ----------
 
-    ax : matplotlip axis object
+    ax : matplotlib axis object
 
     mask : np.ndarray
         object mask data to be plotted
 
     results : Result dataclass
-        dataclasss of calculated results for object
+        dataclass of calculated results for object
 
     Returns
     -------
@@ -188,6 +152,7 @@ def make_onetwo(ax, mask, result):
 
     ax.imshow(mask, origin="lower", aspect="auto", cmap="gray")
     ax.scatter(result.apix[0], result.apix[1], label="Asym. centre")
+    ax.set_xlim([-0.5, mask.shape[0]+0.5])
     ax.set_title("Object mask")
 
     text = f"A={result.A[0]:.3f}\nA_bgr={result.A[1]:.3f}\n" rf"$A_s$={result.As[0]:.3f}"
@@ -206,20 +171,20 @@ def make_twoone(ax, shape, result):
     Parameters
     ----------
 
-    ax : matplotlip axis object
+    ax : matplotlib axis object
         axis instance to plot to
 
     shape : Tuple[int]
         Shape of image
 
     results : Result dataclass
-        dataclasss of calculated results for object
+        dataclass of calculated results for object
 
     Returns
     -------
 
     modelimage : np.ndarray
-        fitted model sersic image
+        fitted model Sersic image
 
 
     '''
@@ -269,8 +234,8 @@ def make_twotwo(ax, img, modelImage, listofStarstoPlot, result):
     modelImage : np.ndarray
         model sersic image
 
-    listofStarstoPlot : List[float]
-        list of stars to that occlude the main object
+    listofStarstoPlot : List[List[float]]
+        list of stars to that occlude the main object. [RA, DEC, name, psfMag_r]
 
     results : Result dataclass
         dataclasss of calculated results for object
@@ -315,37 +280,39 @@ def make_figure(result, save=False):
         try:
             img, header = fits.getdata(result.cleanImage, header=True)
         except ValueError:
-            img, header = fits.getdata(result.outfolder.parent / "data" / result.file, header=True)
+            img, header = fits.getdata(result.outfolder.parent / ("data/" + result.file), header=True)
 
         try:
             mask = fits.getdata(result.pixelMapFile)
         except ValueError:
             mask = fits.getdata(result.outfolder / ("pixelmap_" + result.file))
 
-    if result.occludedFile != "":
-        listofStarstoPlot = _getStarsOccludObject(result.file, header, result.outfolder, result.occludedFile)
-    else:
-        listofStarstoPlot = []
-
-    if result.sersic_r_eff != -99:
+    if result.sersic_r_eff != -99 and result.sky != -99:
         fig, axs = plt.subplots(2, 2)
         axs = axs.ravel()
         make_oneone(axs[0], img, result)
         make_onetwo(axs[1], mask, result)
         modelImage = make_twoone(axs[2], img.shape, result)
-        make_twotwo(axs[3], img, modelImage, listofStarstoPlot, result)
+        make_twotwo(axs[3], img, modelImage, result.objList, result)
     else:
+        print("here")
         fig, axs = plt.subplots(1, 2)
         make_oneone(axs[0], img, result)
+        axs[0].set_ylim([-0.5, img.shape[1]+0.5])
         make_onetwo(axs[1], mask, result)
+        axs[1].set_ylim([-0.5, mask.shape[1]+0.5])
+
     fig.set_figheight(11.25)
     fig.set_figwidth(20)
 
+    if len(result.objList) > 0:
+        occludingStars = RADECtopixel(result.objList, header)
+
     for i, ax in enumerate(axs):
         ax = _supressAxs(ax)
-        if(len(listofStarstoPlot) > 0):
+        if(len(result.objList) > 0):
             if i != 2:
-                ax.scatter(*zip(*listofStarstoPlot), label="STAR", color="orange")
+                ax.scatter(*zip(*occludingStars), label="STAR", color="orange")
         if i != 3:
             ax.legend()
 
