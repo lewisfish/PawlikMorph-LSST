@@ -42,6 +42,7 @@ First clone this repo. Then either use pip or conda to install dependencies:
  - Scikit-image 0.14.0+
  - Pandas 0.25.3+
  - photutils 0.7.1+
+ - Parsl 0.9+
  
  If diagnostic.py is used 
  - matplotlib
