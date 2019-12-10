@@ -12,4 +12,4 @@ dependencies:
   - matplotlib
   - photutils
   - pandas
-  - parsl
+
