@@ -7,7 +7,7 @@ from typing import List, Tuple, Any
 class Result:
     '''Class that stores the results of image analysis'''
 
-    # names of files and folders used or generated in anaylsis
+    # names of files and folders used or generated in analysis
     file: str
     outfolder: Any
     occludedFile: str
@@ -36,6 +36,7 @@ class Result:
     sersic_theta: float = -99.
     time: float = 0.
     star_flag: bool = False
+    maskedPixelFraction: float = -99.
 
     def write(self, objectfile):
         '''Write out result as a row to a csv file'''
@@ -48,4 +49,4 @@ class Result:
                              f"{self.sersic_n}", f"{self.sersic_x_0}",
                              f"{self.sersic_y_0}", f"{self.sersic_ellip}",
                              f"{self.sersic_theta}", f"{self.time}",
-                             f"{self.star_flag}"])
+                             f"{self.star_flag}", f"{self.maskedPixelFraction}"])

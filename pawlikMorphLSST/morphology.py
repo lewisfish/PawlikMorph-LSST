@@ -13,10 +13,11 @@ from .helpers import checkFile
 from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
 from .objectMasker import objectOccluded
+from .pixmap import pixelmap
+from .pixmap import calcMaskedFraction
 from .result import Result
 from .sersic import fitSersic
 from .skyBackground import skybgr
-from .pixmap import pixelmap
 
 __all__ = ["calcMorphology"]
 
@@ -41,7 +42,7 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
                    calculateSersic=False, savePixelMap=True,
                    saveCleanImage=True, imageSource=None, catalogue=None,
                    largeImage=False, paramsaveFile="parameters.csv",
-                   occludedSaveFile="occluded-object-locations.csv"):
+                   occludedSaveFile="occluded-object-locations.csv", cores=1):
     '''
     Calculates various morphological parameters of galaxies from an image.
 
@@ -72,6 +73,8 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
     occludedSaveFile: str or Path object
         Name of file where objects that occlude the object of interest are
         saved
+    cores: int, optional
+        Number of cores/processes to use for multiprocessing. Default value is 1
 
     Returns
     -------
@@ -97,7 +100,7 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
         objwriter.writerow(["file", "ra", "dec", "type"])
 
     # https://stackoverflow.com/questions/20190668/multiprocessing-a-for-loop
-    pool = Pool(6)
+    pool = Pool(cores)
     engine = Engine([outfolder, filterSize, asymmetry,
                      shapeAsymmetry, allAsymmetry,
                      calculateSersic, savePixelMap,
@@ -215,6 +218,7 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
 
     if asymmetry or allAsymmetry:
         newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
+        newResult.maskedPixelFraction = calcMaskedFraction(tmpmask, starMask, newResult.apix)
 
     if shapeAsymmetry or allAsymmetry:
         newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
@@ -222,7 +226,7 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
         newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
 
     if calculateSersic:
-        p = fitSersic(img, newResult.apix, newResult.fwhms, newResult.theta)
+        p = fitSersic(img, newResult.apix, newResult.fwhms, newResult.theta, starMask)
         newResult.sersic_amplitude = p.amplitude.value
         newResult.sersic_r_eff = p.r_eff.value
         newResult.sersic_ellip = p.ellip.value

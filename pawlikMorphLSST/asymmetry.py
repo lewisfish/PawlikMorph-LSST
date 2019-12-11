@@ -66,18 +66,17 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
         if fluxSum >= twentyPercentFlux:
             break
 
-    imageRavel = np.ravel(image)
     a = np.zeros(count)
 
     # test centroid candidates for minima of asymmetry
     for i, point in enumerate(centroidCandidates):
-        imageRotate = transform.rotate(image, 180., center=point, preserve_range=True)
-        imageResidual = np.abs(image - imageRotate)
+        imageRotate = transform.rotate(imageMask, 180., center=point, preserve_range=True)
+        imageResidual = np.abs(imageMask - imageRotate)
         imageResidualRavel = np.ravel(imageResidual)
 
         regionMask = apercentre(apermask, point)
         regionIndicies = np.nonzero(np.ravel(regionMask) == 1)[0]
-        region = imageRavel[regionIndicies]
+        region = imageMaskRavel[regionIndicies]
         regionResidual = imageResidualRavel[regionIndicies]
 
         regionMask *= 0
@@ -115,7 +114,8 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
         Angle to rotate object, in degrees.
 
     starMask : np.ndarray
-        Precomputed mask that masks stars that interfere with object measurement
+        Precomputed mask that masks stars that interfere with object
+        measurement
 
     noisecorrect : bool, optional
         Default value False. If true corrects for background noise
@@ -132,19 +132,19 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
     cenpix_y = centroid[1]
 
     # cast to float so that rotate is happy
-    starMask = starMask.astype(np.float64)
+    starMaskCopy = starMask.astype(np.float64)
     # rotate the star mask angle degrees, so that star does not interfere
     # with measurement
-    starMask *= transform.rotate(starMask, angle, center=(cenpix_x, cenpix_y),
+    starMaskCopy *= transform.rotate(starMaskCopy, angle, center=(cenpix_x, cenpix_y),
                                  preserve_range=True, cval=1.)
 
     # mask image
-    img *= starMask
-    imgRot = transform.rotate(img, angle, center=(cenpix_x, cenpix_y),
+    imgCopy = img * starMaskCopy
+    imgRot = transform.rotate(imgCopy, angle, center=(cenpix_x, cenpix_y),
                               preserve_range=True)
 
-    imgResid = np.abs(img - imgRot)
-    imgravel = np.ravel(img)
+    imgResid = np.abs(imgCopy - imgRot)
+    imgravel = np.ravel(imgCopy)
 
     netmask = apermask
 
@@ -159,12 +159,12 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
 
         # build "background noise" image using morphological dilation
         # https://en.wikipedia.org/wiki/Dilation_(morphology)
-        bgrimg = np.zeros_like(img)
+        bgrimg = np.zeros_like(imgCopy)
         bgrimg = np.ravel(bgrimg)
         element = np.ones((9, 9))
 
         # mask pixel map
-        pixmap *= starMask
+        pixmap *= starMaskCopy
         mask = ndimage.morphology.binary_dilation(pixmap, structure=element)
         maskind = np.nonzero(np.ravel(mask) == 1)[0]
         bgrind = np.nonzero(np.ravel(mask) != 1)[0]
@@ -189,7 +189,7 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
                 bgrimg[bgrind] = bgrpix
                 bgrimg[maskind] = maskpix
 
-                bgrimg = bgrimg.reshape((img.shape[0], img.shape[0]))
+                bgrimg = bgrimg.reshape((imgCopy.shape[0], imgCopy.shape[0]))
                 bgrimgRot = transform.rotate(bgrimg, 180., center=(cenpix_y, cenpix_x), preserve_range=True)
                 bgrimgResid = np.ravel(np.abs(bgrimg - bgrimgRot))
 

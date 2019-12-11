@@ -31,6 +31,8 @@ if __name__ == '__main__':
     parser.add_argument("-fs", "--filtersize", type=int, default=3,
                         choices=[1, 3, 5, 7, 9, 11, 13, 15],
                         help="Size of kernel for mean filter")
+    parser.add_argument("-n", "--cores", type=int, help="Number of\
+                        cores/process to use in calculation")
 
     args = parser.parse_args()
 
@@ -48,7 +50,8 @@ if __name__ == '__main__':
                                         imageSource=args.imgsource,
                                         largeImage=args.largeimage,
                                         catalogue=args.catalogue,
-                                        filterSize=args.filtersize)
+                                        filterSize=args.filtersize,
+                                        cores=args.cores)
 
     print(" ")
     for i in results:

@@ -6,7 +6,8 @@ from astropy.modeling import models, fitting
 __all__ = ["fitSersic"]
 
 
-def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float], theta: float):
+def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float],
+              theta: float, starMask: np.ndarray):
     '''Function that fits a 2D sersic function to an image of a Galaxy.
 
     Parameters
@@ -20,6 +21,8 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float], thet
         Full width half maximums of object
     theta : float
         rotation of object anticlockwise from positive x axis
+    starMask : np.ndarray
+        Mask contains star locations.
 
     Returns
     -------
@@ -30,6 +33,7 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float], thet
 
     '''
 
+    imageCopy = image * starMask
     fit_p = fitting.LevMarLSQFitter()
 
     # amplitude => Surface brightness at r_eff
@@ -39,11 +43,14 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float], thet
     ellip = (max(fwhms) - min(fwhms)) / max(fwhms)
 
     # TODO better guess of intial values?
-    sersic_init = models.Sersic2D(amplitude=np.mean(image), r_eff=max(fwhms), n=1.5, x_0=centroid[0], y_0=centroid[1],
+    sersic_init = models.Sersic2D(amplitude=np.mean(imageCopy),
+                                  r_eff=max(fwhms), n=1.5,
+                                  x_0=centroid[0], y_0=centroid[1],
                                   ellip=ellip, theta=theta)
-    ny, nx = image.shape
+
+    ny, nx = imageCopy.shape
     y, x = np.mgrid[0:ny, 0:nx]
 
-    Parameters = fit_p(sersic_init, x, y, image, maxiter=500, acc=1e-5)
+    Parameters = fit_p(sersic_init, x, y, imageCopy, maxiter=500, acc=1e-5)
 
     return Parameters

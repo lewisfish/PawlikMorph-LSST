@@ -153,10 +153,13 @@ def make_onetwo(ax, mask, result):
     ax.imshow(mask, origin="lower", aspect="auto", cmap="gray")
     ax.scatter(result.apix[0], result.apix[1], label="Asym. centre")
     ax.set_xlim([-0.5, mask.shape[0]+0.5])
+    ax.set_ylim([-0.5, mask.shape[1]+0.5])
     ax.set_title("Object mask")
 
     text = f"A={result.A[0]:.3f}\nA_bgr={result.A[1]:.3f}\n" rf"$A_s$={result.As[0]:.3f}"
     text += "\n" fr"$A_s90$={result.As90[0]:.3f}"
+    if len(result.objList) > 0:
+        text += f"\nmaskedFraction={result.maskedPixelFraction*100.:.1f}"
     textbox = AnchoredText(text, frameon=True, loc=3, pad=0.5)
     ax.add_artist(textbox)
 
@@ -295,7 +298,6 @@ def make_figure(result, save=False):
         modelImage = make_twoone(axs[2], img.shape, result)
         make_twotwo(axs[3], img, modelImage, result.objList, result)
     else:
-        print("here")
         fig, axs = plt.subplots(1, 2)
         make_oneone(axs[0], img, result)
         axs[0].set_ylim([-0.5, img.shape[1]+0.5])
@@ -314,7 +316,7 @@ def make_figure(result, save=False):
             if i != 2:
                 ax.scatter(*zip(*occludingStars), label="STAR", color="orange")
         if i != 3:
-            ax.legend()
+            ax.legend(loc=2)
 
     plt.subplots_adjust(top=0.975, bottom=0.005, left=0.003, right=0.997, hspace=0.050, wspace=0.006)
 

@@ -1,10 +1,44 @@
-import sys
+from typing import List
 
 import numpy as np
 from scipy import ndimage
 from skimage import transform
 
-__all__ = ["pixelmap"]
+__all__ = ["pixelmap", "calcMaskedFraction"]
+
+
+def calcMaskedFraction(oldMask: np.ndarray, starMask: np.ndarray,
+                       cenpix: List[float]) -> float:
+    '''Function that calculates the fraction of object pixels that are masked
+       due to presence of a star
+
+    Parameters
+    ----------
+
+    oldMask : np.ndarray
+        Mask containing object of interest.
+
+    starMask : np.ndarray
+        Mask containing location of star
+
+    cenpix : List[float]
+        Centre of asymmetry in pixels.
+
+    Returns
+    -------
+
+    Fraction of object pixels masked by stars : float
+
+    '''
+
+    starMaskCopy = starMask * transform.rotate(starMask, 180.,
+                                               center=(cenpix[0], cenpix[1]),
+                                               preserve_range=True, cval=1.)
+
+    maskedFraction = np.sum(oldMask * starMaskCopy)
+    objectFraction = np.sum(oldMask)
+
+    return 1. - (maskedFraction / objectFraction)
 
 
 def pixelmap(image: np.ndarray, threshold: float, filterSize: int,
