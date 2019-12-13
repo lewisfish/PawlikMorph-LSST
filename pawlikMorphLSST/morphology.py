@@ -132,7 +132,16 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                                         numberSigmas)
             outputs.append(output)
         results = [i.result() for i in outputs]
-
+    else:
+        results = []
+        for file in files:
+            result = _analyseImage(file, outfolder, filterSize, asymmetry,
+                                   shapeAsymmetry, allAsymmetry,
+                                   calculateSersic, savePixelMap,
+                                   saveCleanImage, imageSource, catalogue,
+                                   largeImage, paramsaveFile, occludedSaveFile,
+                                   numberSigmas)
+            results.append(result)
 
     # write out results
     for result in results:

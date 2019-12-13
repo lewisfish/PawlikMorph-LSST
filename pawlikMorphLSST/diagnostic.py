@@ -271,6 +271,8 @@ def make_figure(result, save=False):
 
     save : bool, optional
         If true function saves generated figure.
+    show: bool, optional
+        If true open interactive matplotlib plot.
 
     Returns
     -------
@@ -323,4 +325,6 @@ def make_figure(result, save=False):
 
     if save:
         plt.savefig("results/result_" + result.file[11:-11] + ".png", dpi=96)
+    if show:
+        plt.show()
     plt.close()

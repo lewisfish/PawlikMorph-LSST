@@ -8,6 +8,7 @@ from astropy.io import fits
 from astropy.modeling import models, fitting
 from astropy.stats import gaussian_fwhm_to_sigma, sigma_clipped_stats
 from astropy.utils.exceptions import AstropyWarning
+from photutils import aperture
 from scipy import optimize
 
 from .apertures import distarr
@@ -101,7 +102,6 @@ def skybgr(img: np.ndarray, imgsize: int, file, largeImage: bool,
 
 def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, float, int]:
     '''Function that calculates the sky background value.
-       Near direct translation of IDL code.
 
     Parameters
     ----------
@@ -132,16 +132,16 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
     except RuntimeError:
         r_in, fwhms, theta = _fitAltGauss(img, smallimg)
 
-    skyMask, skyRegion = _getSkyRegion(img, distarrvar, r_in)
+    skyMask, skyRegion = _getSkyRegion(img, distarrvar, r_in, fwhms, cenpix, theta)
 
     if skyMask.count() < 300:
         # if skyregion too small try with more robust Gaussian fitter
         r_in, fwhms, theta = _fitAltGauss(img, smallimg)
-        skyMask, skyRegion = _getSkyRegion(img, distarrvar, r_in)
+        skyMask, skyRegion = _getSkyRegion(img, distarrvar, r_in, fwhms, cenpix, theta)
 
     if skyMask.count() < 100:
         raise _SkyError(f"Error! Sky region too small {skyMask.count()}")
-
+        sys.exit()
     # Flag the measurement if sky region smaller than 20000 pixels
     # (Simard et al. 2011)
     if skyMask.count() < 20000:
@@ -204,7 +204,7 @@ def _fitGauss(img: np.ndarray, smallimg: bool) -> Tuple[float, List[float], floa
 
     # convert theta to radians and correct quadrant for Sersic fit
     # Theta is now measured anticlockwise from +ive x axis
-    if theta < (np.pi/2.):
+    if theta > (np.pi/2.):
         theta = np.pi - theta
     else:
         thetaDeg = theta / (2.*np.pi)
@@ -256,7 +256,7 @@ def _fitAltGauss(img: np.ndarray, smallimg: bool) -> Tuple[float, List[float], f
     return r_in, [fwhm_x, fwhm_y], theta
 
 
-def _getSkyRegion(image: np.ndarray, distarrvar: np.ndarray, radius: float) -> Tuple[np.ndarray, np.ndarray]:
+def _getSkyRegion(image: np.ndarray, distarrvar: np.ndarray, radius: float, fwhms, cenpix, theta) -> Tuple[np.ndarray, np.ndarray]:
     '''Function to get sky region as a numpy mask array
 
     Parameters
@@ -283,8 +283,14 @@ def _getSkyRegion(image: np.ndarray, distarrvar: np.ndarray, radius: float) -> T
 
     '''
 
-    # Get sky region as False so can be masked
-    skyregion = distarrvar < radius
+    # Get sky region and mask
+    a = 2. * min(fwhms)
+    b = 2. * max(fwhms)
+
+    ellipAper = aperture.EllipticalAperture(cenpix, a, b, theta=theta)
+    ellipMask = ellipAper.to_mask(method="center")
+    skyregion = (ellipMask.to_image(image.shape).astype(bool))
+
     skymask = np.ma.array(image, mask=skyregion)
 
     return skymask, skyregion

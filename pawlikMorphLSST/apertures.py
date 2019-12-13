@@ -122,7 +122,7 @@ def aperpixmap(npix: int, rad: float,  nsubpix: int, frac: float) -> np.ndarray:
 
 @nb.njit(nb.float64[:, :](nb.int64, nb.int64, nb.int64[:]))
 def distarr(npixx: int, npixy: int, cenpix: np.ndarray) -> np.ndarray:
-    '''Writes the aperture binary masks out after calculation.
+    '''Creates an array of distances from given centre pixel.
 
     Parameters
     ----------
