@@ -201,13 +201,14 @@ def make_twoone(ax, shape, result):
                                           result.sersic_x_0, result.sersic_y_0,
                                           result.sersic_ellip, result.sersic_theta)
 
-    modelimage += np.random.normal(result.sky, result.sky_err, size=shape)
+    # modelimage += np.random.normal(result.sky, result.sky_err, size=shape)
     ax.imshow(log_stretch(_normalise(modelimage)), origin="lower", aspect="auto")
     ax.scatter(result.sersic_x_0, result.sersic_y_0, label="Sersic centre")
     ax.set_title("Sersic fit")
 
     text = f"Ellip.={result.sersic_ellip:.3f}\n"
-    text += f"n={result.sersic_n:.3f}"
+    text += f"n={result.sersic_n:.3f}\n r_eff={result.sersic_r_eff:.3f}\n"
+    text += f"Amplitude={result.sersic_amplitude:.3f}"
     textbox = AnchoredText(text, frameon=True, loc=3, pad=0.5)
     ax.add_artist(textbox)
 

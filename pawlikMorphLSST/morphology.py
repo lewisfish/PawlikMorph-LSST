@@ -3,7 +3,10 @@ import time
 from multiprocessing import Pool
 
 import numpy as np
+import parsl
 from astropy.io import fits
+from parsl.app.app import python_app
+from parsl.configs.local_threads import config
 
 from .apertures import aperpixmap
 from .apertures import distarr
@@ -37,12 +40,12 @@ class Engine(object):
         return _analyseImage(filename, *self.parameters)
 
 
-def calcMorphology(files, outfolder, filterSize, asymmetry=False,
-                   shapeAsymmetry=False, allAsymmetry=True,
-                   calculateSersic=False, savePixelMap=True,
+def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: int,
+                   numberSigmas: float, asymmetry=False, shapeAsymmetry=False,
+                   allAsymmetry=True, calculateSersic=False, savePixelMap=True,
                    saveCleanImage=True, imageSource=None, catalogue=None,
                    largeImage=False, paramsaveFile="parameters.csv",
-                   occludedSaveFile="occluded-object-locations.csv", cores=1):
+                   occludedSaveFile="occluded-object-locations.csv"):
     '''
     Calculates various morphological parameters of galaxies from an image.
 
@@ -53,6 +56,14 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
         files to iterate over
     outfolder : Path object or str
         path to folder where data from analysis will be saved
+    filterSize : int
+        Size of mean filter to use on object pixelmap
+    parallelLibrary : str
+        Chooses which parallel library to use
+    cores: int
+        Number of cores/processes to use for multiprocessing.
+    numberSigmas : float
+        The extent of which to mask out stars if a catalogue is provided.
     asymmetry : bool, optional
         Default false. If true calculates asymmetry value
     shapeAsymmetry : bool, optional
@@ -73,8 +84,6 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
     occludedSaveFile: str or Path object
         Name of file where objects that occlude the object of interest are
         saved
-    cores: int, optional
-        Number of cores/processes to use for multiprocessing. Default value is 1
 
     Returns
     -------
@@ -99,16 +108,31 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
         objwriter = csv.writer(objcsvfile, delimiter=",")
         objwriter.writerow(["file", "ra", "dec", "type"])
 
-    # https://stackoverflow.com/questions/20190668/multiprocessing-a-for-loop
-    pool = Pool(cores)
-    engine = Engine([outfolder, filterSize, asymmetry,
-                     shapeAsymmetry, allAsymmetry,
-                     calculateSersic, savePixelMap,
-                     saveCleanImage, imageSource, catalogue,
-                     largeImage, paramsaveFile, occludedSaveFile])
-    results = pool.map(engine, files)
-    pool.close()
-    pool.join()
+    if parallelLibrary == "multi":
+        # https://stackoverflow.com/questions/20190668/multiprocessing-a-for-loop
+        pool = Pool(cores)
+        engine = Engine([outfolder, filterSize, asymmetry,
+                         shapeAsymmetry, allAsymmetry,
+                         calculateSersic, savePixelMap,
+                         saveCleanImage, imageSource, catalogue,
+                         largeImage, paramsaveFile, occludedSaveFile,
+                         numberSigmas])
+        results = pool.map(engine, files)
+        pool.close()
+        pool.join()
+    elif parallelLibrary == "parsl":
+        parsl.load(config)
+        outputs = []
+        for file in files:
+            output = _analyseImageParsl(file, outfolder, filterSize, asymmetry,
+                                        shapeAsymmetry, allAsymmetry,
+                                        calculateSersic, savePixelMap,
+                                        saveCleanImage, imageSource, catalogue,
+                                        largeImage, paramsaveFile, occludedSaveFile,
+                                        numberSigmas)
+            outputs.append(output)
+        results = [i.result() for i in outputs]
+
 
     # write out results
     for result in results:
@@ -127,11 +151,27 @@ def calcMorphology(files, outfolder, filterSize, asymmetry=False,
     return results
 
 
+@python_app
+def _analyseImageParsl(file, outfolder, filterSize, asymmetry,
+                       shapeAsymmetry, allAsymmetry,
+                       calculateSersic, savePixelMap,
+                       saveCleanImage, imageSource, catalogue,
+                       largeImage, paramsaveFile, occludedSaveFile,
+                       numberSigmas):
+
+    return _analyseImage(file, outfolder, filterSize, asymmetry,
+                         shapeAsymmetry, allAsymmetry,
+                         calculateSersic, savePixelMap,
+                         saveCleanImage, imageSource, catalogue,
+                         largeImage, paramsaveFile, occludedSaveFile,
+                         numberSigmas)
+
+
 def _analyseImage(file, outfolder, filterSize, asymmetry,
                   shapeAsymmetry, allAsymmetry,
                   calculateSersic, savePixelMap,
                   saveCleanImage, imageSource, catalogue,
-                  largeImage, paramsaveFile, occludedSaveFile):
+                  largeImage, paramsaveFile, occludedSaveFile, numberSigmas):
 
     print(file)
     if catalogue is None:
@@ -176,7 +216,7 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
                                                                 catalogue, header)
 
         # remove star using images PSF to estimate stars radius
-        starMask = maskstarsPSF(img, newResult.objList, header, newResult.sky)
+        starMask = maskstarsPSF(img, newResult.objList, header, newResult.sky, numberSigmas)
         newResult.starMask = starMask
         mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
     else:
@@ -218,7 +258,8 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
 
     if asymmetry or allAsymmetry:
         newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
-        newResult.maskedPixelFraction = calcMaskedFraction(tmpmask, starMask, newResult.apix)
+        if catalogue:
+            newResult.maskedPixelFraction = calcMaskedFraction(tmpmask, starMask, newResult.apix)
 
     if shapeAsymmetry or allAsymmetry:
         newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
