@@ -201,7 +201,7 @@ def make_twoone(ax, shape, result):
                                           result.sersic_x_0, result.sersic_y_0,
                                           result.sersic_ellip, result.sersic_theta)
 
-    # modelimage += np.random.normal(result.sky, result.sky_err, size=shape)
+    modelimage += np.random.normal(result.sky, result.sky_err, size=shape)
     ax.imshow(log_stretch(_normalise(modelimage)), origin="lower", aspect="auto")
     ax.scatter(result.sersic_x_0, result.sersic_y_0, label="Sersic centre")
     ax.set_title("Sersic fit")
@@ -251,14 +251,20 @@ def make_twotwo(ax, img, modelImage, listofStarstoPlot, result):
 
     if len(listofStarstoPlot) > 0:
         imageMask = np.where(result.starMask == 1, img, np.rot90(img))
-        ax.imshow(_normalise(imageMask - modelImage), origin="lower", aspect="auto")
+        residual = (imageMask - modelImage)
+        ax.imshow(residual, origin="lower", aspect="auto")
     else:
-        ax.imshow(_normalise(img - modelImage), origin="lower", aspect="auto")
+        residual = (img - modelImage)
+        ax.imshow(residual, origin="lower", aspect="auto")
+
+    text = f"Range={np.amin(residual):.3e} => {np.amax(residual):.3e}\n"
+    textbox = AnchoredText(text, frameon=True, loc=3, pad=0.5)
+    ax.add_artist(textbox)
 
     ax.set_title("Sersic fit residual")
 
 
-def make_figure(result, save=False):
+def make_figure(result, save=False, show=False):
     '''Function plots results from image analysis. Plots two or four images.
        Top row: original image  and object map with stars overplotted if any.
        bottom row: Sersic fit and residual with stars overplotted if any.
