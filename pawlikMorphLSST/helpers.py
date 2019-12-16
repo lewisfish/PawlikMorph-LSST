@@ -1,9 +1,6 @@
-import csv
 import sys
-import time
 import warnings
 from pathlib import Path
-from typing import List
 
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning

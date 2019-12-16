@@ -61,7 +61,7 @@ def maskstarsSEG(image: np.ndarray):
     mean, median, std = sigma_clipped_stats(image, sigma=3.)
 
     # create segmentation map
-    # TODO give user option to specify kernel and/or size of kernel?
+    # TODO give user option to specify kernel, size of kernel and threshold?
     imageClean = np.copy(image)
     threshold = detect_threshold(image, 1.5)
     sigma = 3.0 * gaussian_fwhm_to_sigma

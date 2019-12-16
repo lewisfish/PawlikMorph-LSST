@@ -1,12 +1,12 @@
-import warnings
 from pathlib import Path as _Path
 from typing import List, Tuple
+import warnings
 
 import numpy as np
 
 from astropy.io import fits
 from astropy.modeling import models, fitting
-from astropy.stats import gaussian_fwhm_to_sigma, sigma_clipped_stats
+from astropy.stats import sigma_clipped_stats
 from astropy.utils.exceptions import AstropyWarning
 from photutils import aperture
 from scipy import optimize

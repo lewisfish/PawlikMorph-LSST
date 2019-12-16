@@ -1,17 +1,16 @@
 from typing import List, Tuple
-import sys
-import matplotlib.pyplot as plt
-from scipy.optimize import brentq
-import photutils
+
 import numpy as np
 from astropy.modeling import models, fitting
+from photutils import EllipticalAperture, EllipticalAnnulus
+from scipy.optimize import brentq
 
 __all__ = ["fitSersic"]
 
 
 def fractionTotalFLuxEllipse(a, image, b, theta, centre, totalsum):
 
-    apCur = photutils.EllipticalAperture(centre, a, b, theta)
+    apCur = EllipticalAperture(centre, a, b, theta)
     curSum = apCur.do_photometry(image, method="exact")[0][0]
 
     return (curSum/totalsum) - 0.5
@@ -55,7 +54,7 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float],
     a = 2. * max(fwhms)
     ellip = 1. - (b/a)
 
-    ap_total = photutils.EllipticalAperture(centroid, a, b, theta)
+    ap_total = EllipticalAperture(centroid, a, b, theta)
     totalSum = ap_total.do_photometry(image, method="exact")[0][0]
 
     # get bracketing values for root finder to find r_eff
@@ -64,7 +63,7 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float],
     aMin = 0
     aMax = 0
     while True:
-        apCur = photutils.EllipticalAperture(centroid, aCurrent, b, theta)
+        apCur = EllipticalAperture(centroid, aCurrent, b, theta)
         currentSum = apCur.do_photometry(image, method="exact")[0][0]
         currentFraction = currentSum / totalSum
         if currentFraction <= .5:
@@ -81,7 +80,7 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float],
     a_in = r_eff - 0.5
     a_out = r_eff + 0.5
     b_out = a_out - (1. * ellip)
-    ellip_annulus = photutils.EllipticalAnnulus(centroid, a_in, a_out, b_out, theta)
+    ellip_annulus = EllipticalAnnulus(centroid, a_in, a_out, b_out, theta)
     totalR_effFlux = ellip_annulus.do_photometry(image, method="exact")[0][0]
     meanR_effFlux = totalR_effFlux / ellip_annulus.area
 
