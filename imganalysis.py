@@ -45,9 +45,6 @@ if __name__ == '__main__':
     parser.add_argument("-n", "--cores", type=int, default=1, help="Number of\
                         cores/process to use in calculation")
 
-    parser.add_argument("-m", "--masks", actoin="store_true", help="Provide\
-                        pre-calculated object masks in fits file format.")
-
     args = parser.parse_args()
 
     files = helpers.getFiles(args.imgsource, file=args.file,
@@ -67,8 +64,7 @@ if __name__ == '__main__':
                                         filterSize=args.filtersize,
                                         cores=args.cores,
                                         parallelLibrary=args.parlib,
-                                        numberSigmas=args.numsig,
-                                        masks=args.masks)
+                                        numberSigmas=args.numsig)
 
     print(" ")
     for i in results:

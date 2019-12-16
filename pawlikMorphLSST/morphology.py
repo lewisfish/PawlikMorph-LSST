@@ -43,7 +43,7 @@ class Engine(object):
 def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: int,
                    numberSigmas: float, asymmetry=False, shapeAsymmetry=False,
                    allAsymmetry=True, calculateSersic=False, savePixelMap=True,
-                   saveCleanImage=True, imageSource=None, catalogue=None, masks=False,
+                   saveCleanImage=True, imageSource=None, catalogue=None,
                    largeImage=False, paramsaveFile="parameters.csv",
                    occludedSaveFile="occluded-object-locations.csv"):
     '''
@@ -84,9 +84,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
     occludedSaveFile: str or Path object
         Name of file where objects that occlude the object of interest are
         saved
-    masks : bool, optional
-        If true uses user defined masks to calculate galaxy morphological
-        parameters. Default is False.
+
 
     Returns
     -------
@@ -119,7 +117,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                          calculateSersic, savePixelMap,
                          saveCleanImage, imageSource, catalogue,
                          largeImage, paramsaveFile, occludedSaveFile,
-                         numberSigmas, masks])
+                         numberSigmas])
         results = pool.map(engine, files)
         pool.close()
         pool.join()
@@ -132,7 +130,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                                         calculateSersic, savePixelMap,
                                         saveCleanImage, imageSource, catalogue,
                                         largeImage, paramsaveFile, occludedSaveFile,
-                                        numberSigmas, masks)
+                                        numberSigmas)
             outputs.append(output)
         results = [i.result() for i in outputs]
     else:
@@ -143,7 +141,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                                    calculateSersic, savePixelMap,
                                    saveCleanImage, imageSource, catalogue,
                                    largeImage, paramsaveFile, occludedSaveFile,
-                                   numberSigmas, masks)
+                                   numberSigmas)
             results.append(result)
 
     # write out results
@@ -187,7 +185,7 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
                   calculateSersic, savePixelMap,
                   saveCleanImage, imageSource, catalogue,
                   largeImage, paramsaveFile, occludedSaveFile, numberSigmas):
-    '''The main function that calls all the underlying scientific anaylses code
+    '''The main function that calls all the underlying scientific analysis code
 
     '''
 
@@ -211,13 +209,12 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
 
     s = time.time()
 
-    if not masks:
-        newResult, mask, starMask, image, tmpmask = _createMasks(img, imgsize, newResult,
-                                                                 file, catalogue,
-                                                                 saveCleanImage,
-                                                                 savePixelMap, outfolder,
-                                                                 largeImage, imageSource,
-                                                                 filterSize, header, numberSigmas)
+    newResult, mask, starMask, image, tmpmask = _createMasks(img, imgsize, newResult,
+                                                             file, catalogue,
+                                                             saveCleanImage,
+                                                             savePixelMap, outfolder,
+                                                             largeImage, imageSource,
+                                                             filterSize, header, numberSigmas)
 
     newResult = _calcParameters(newResult, img, imgsize, mask, starMask, tmpmask,
                                 asymmetry, allAsymmetry, shapeAsymmetry,
