@@ -39,7 +39,7 @@ def _inBbox(extent: List[float], point: List[float]) -> bool:
     return False
 
 
-def maskstarsSEG(image: np.ndarray):
+def maskstarsSEG(image: np.ndarray) -> np.ndarray:
     '''Function that cleans image of external sources. Uses segmentation map
        to achieve this.
 
@@ -128,8 +128,28 @@ def _circle_mask(shape: Tuple[int], centre: Tuple[int], radius: float):
     return circmask*anglemask
 
 
-def _calculateRadius(psf, counts, sigma):
-    return sigma * np.sqrt(2. * np.log(counts / psf))
+def _calculateRadius(y, A, sigma):
+    ''' function that calculates the radius of a Gaussian for a given y
+        y = A * exp(*x^2/(s*sig^2))
+
+        Parameters
+        ----------
+
+        y : float
+
+        A : float
+
+        sigma : float
+
+        Returns
+        -------
+
+        Radius : float
+            Radius of Gaussian
+
+    '''
+
+    return sigma * np.sqrt(abs(2. * np.log(A / y)))
 
 
 def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
@@ -202,7 +222,7 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
 
         # calculate radius of star
         sigma = max(sigma1, sigma2)
-        radius = numSigmas * _calculateRadius(objectMag, skyMag, sigma)
+        radius = numSigmas * _calculateRadius(skyMag, objectMag, sigma)
 
         # mask out star
         aps = CircularAperture(pixelPos, r=radius)

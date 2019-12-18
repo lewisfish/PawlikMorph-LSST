@@ -33,8 +33,8 @@ class _SkyError(_Error):
 
 
 # TODO make file optional
-def skybgr(img: np.ndarray, imgsize: int, file, largeImage: bool,
-           imageSource: str) -> Tuple[float, float, List[float], float]:
+def skybgr(img: np.ndarray, file=None, largeImage=False,
+           imageSource=None) -> Tuple[float, float, List[float], float]:
     '''Helper function for calculating skybgr
 
     Parameters
@@ -43,17 +43,14 @@ def skybgr(img: np.ndarray, imgsize: int, file, largeImage: bool,
     img: np.ndarray
         image from which a sky background will be calculated
 
-    imgsize: int
-        size of the image. Image is square so this is for one dimension
-
-    file: Path object
+    file: Path object, optional
         Path to image
 
-    largeImage : bool
+    largeImage : bool, optional
         If true algorithm uses larger image to estimate sky background.
         If False uses provided image.
 
-    imgSource : str
+    imgSource : str, optional
         Telescope source of the image. Default is SDSS
 
     Returns
@@ -73,6 +70,8 @@ def skybgr(img: np.ndarray, imgsize: int, file, largeImage: bool,
         anticlockwise
 
     '''
+
+    imgsize = img.shape[0]
 
     if largeImage:
         filename = file.name

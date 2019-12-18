@@ -4,7 +4,51 @@ import numpy as np
 from scipy import ndimage
 from skimage import transform
 
-__all__ = ["pixelmap", "calcMaskedFraction"]
+from .apertures import distarr
+
+__all__ = ["pixelmap", "calcMaskedFraction", "calcRmax"]
+
+
+class _Error(Exception):
+    '''Base class for custom exceptions'''
+    pass
+
+
+class _ImageError(_Error):
+    '''Class of exception where the image contains no object or
+       the object is not centred'''
+
+    def __init__(self, value):
+        print(value)
+        raise AttributeError
+
+
+def calcRmax(mask):
+    '''Function to calculate the maximum extent of a binary pixel map
+
+    Parameters
+    ----------
+
+    mask : np.ndarray
+        Binary pixel mask
+
+    Return
+    ------
+
+    rmax : float
+        the maximum extent of the pixelmap
+
+    '''
+
+    imgsize = mask.shape[0]
+    objectpix = np.nonzero(mask == 1)
+    cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
+
+    distarray = distarr(imgsize, imgsize, cenpix)
+    objectdist = distarray[objectpix]
+    rmax = np.max(objectdist)
+
+    return rmax
 
 
 def calcMaskedFraction(oldMask: np.ndarray, starMask: np.ndarray,
@@ -88,7 +132,7 @@ def pixelmap(image: np.ndarray, threshold: float, filterSize: int,
     cenpix = np.array([int(npix/2), int(npix/2)])
 
     if imageTmp[cenpix[0], cenpix[1]] < threshold:
-        print("ERROR! Central pixel too faint")
+        raise _ImageError("ERROR! Central pixel too faint")
 
     # output binary image array
     objectMask = np.zeros_like(imageTmp)

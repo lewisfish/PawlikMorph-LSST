@@ -85,7 +85,6 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
         Name of file where objects that occlude the object of interest are
         saved
 
-
     Returns
     -------
 
@@ -209,112 +208,62 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
 
     s = time.time()
 
-    newResult, mask, starMask, image, tmpmask = _createMasks(img, imgsize, newResult,
-                                                             file, catalogue,
-                                                             saveCleanImage,
-                                                             savePixelMap, outfolder,
-                                                             largeImage, imageSource,
-                                                             filterSize, header, numberSigmas)
-
-    newResult = _calcParameters(newResult, img, imgsize, mask, starMask, tmpmask,
-                                asymmetry, allAsymmetry, shapeAsymmetry,
-                                calculateSersic, catalogue)
-
-    f = time.time()
-    timetaken = f - s
-    newResult.time = timetaken
-
-    return newResult
-
-
-def _calcParameters(newResult, image, imgsize, mask, starMask=None, tmpmask=None, asymmetry=None,
-                    allAsymmetry=True, shapeAsymmetry=None, calculateSersic=True, catalogue=None):
-
-    objectpix = np.nonzero(mask == 1)
-    cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
-
-    distarray = distarr(imgsize, imgsize, cenpix)
-    objectdist = distarray[objectpix]
-    newResult.rmax = np.max(objectdist)
-    aperturepixmap = aperpixmap(imgsize, newResult.rmax, 9, 0.1)
-
-    # get centre of asymmetry
-    if starMask is None:
-        starMask = np.ones_like(img)
-    newResult.apix = minapix(image, mask, aperturepixmap, starMask)
-    angle = 180.
-
-    if asymmetry or allAsymmetry:
-        newResult.A = calcA(image, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
-        if catalogue:
-            newResult.maskedPixelFraction = calcMaskedFraction(tmpmask, starMask, newResult.apix)
-
-    if shapeAsymmetry or allAsymmetry:
-        newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
-        angle = 90.
-        newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
-
-    if calculateSersic:
-        p = fitSersic(image, newResult.apix, newResult.fwhms, newResult.theta, starMask)
-        newResult.sersic_amplitude = p.amplitude.value
-        newResult.sersic_r_eff = p.r_eff.value
-        newResult.sersic_ellip = p.ellip.value
-        newResult.sersic_n = p.n.value
-        newResult.sersic_theta = p.theta.value
-        newResult.sersic_x_0 = p.x_0.value
-        newResult.sersic_y_0 = p.y_0.value
-
-    return newResult
-
-
-def _createMasks(image, imgsize, newResult, file, catalogue, saveCleanImage,
-                 savePixelMap, outfolder, largeImage, imageSource, filterSize, header, numberSigmas):
+    # clean image of external sources
+    img = maskstarsSEG(img)
 
     # get sky background value and error
     try:
-        newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(image, imgsize, file, largeImage, imageSource)
+        newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(img, imgsize, file, largeImage, imageSource)
     except AttributeError:
         # TODO can fail silently if some other attribute error is raised!
         filename = file.name
         filename = "pixelmap_" + filename
         outfile = outfolder / filename
-        hdu = fits.PrimaryHDU(data=np.zeros_like(image), header=header)
+        hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
+        hdu.writeto(outfile, overwrite=True, output_verify='ignore')
+        print(" ")
+        return newResult
+    except MemoryError:
+        filename = file.name
+        filename = "pixelmap_" + filename
+        outfile = outfolder / filename
+        hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
         hdu.writeto(outfile, overwrite=True, output_verify='ignore')
         print(" ")
         return newResult
 
+
     if catalogue:
         # if a star catalogue is provided calculate pixelmap and then see
         # if any star in catalogue overlaps pixelmap
-        tmpmask = pixelmap(image, newResult.sky + newResult.sky_err,
-                           filterSize)
+        try:
+            tmpmask = pixelmap(img, newResult.sky + newResult.sky_err,
+                               filterSize)
+        except AttributeError:
+            return newResult
 
-        newResult.star_flag, newResult.objList = objectOccluded(tmpmask,
-                                                                file.name,
-                                                                catalogue,
-                                                                header)
+        newResult.star_flag, newResult.objList = objectOccluded(tmpmask, file.name,
+                                                                catalogue, header)
 
         # remove star using images PSF to estimate stars radius
-        starMask = maskstarsPSF(image, newResult.objList, header,
-                                newResult.sky, numberSigmas)
+        starMask = maskstarsPSF(img, newResult.objList, header, newResult.sky, numberSigmas)
         newResult.starMask = starMask
-        mask = pixelmap(image, newResult.sky + newResult.sky_err, filterSize,
-                        starMask)
+        mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
     else:
-        mask = pixelmap(image, newResult.sky + newResult.sky_err, filterSize)
-        starMask = np.ones_like(image)
+        try:
+            mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize)
+            starMask = np.ones_like(img)
+        except AttributeError:
+            return newResult
 
-    image -= newResult.sky
-
-    # clean image of external sources
-    image = maskstarsSEG(image)
+    img -= newResult.sky
 
     if saveCleanImage:
         filename = file.name
         filename = "clean_" + filename
         outfile = outfolder / filename
         newResult.cleanImage = outfile
-        hdu = fits.PrimaryHDU(data=image, header=header)
+        hdu = fits.PrimaryHDU(data=img, header=header)
         hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
     if savePixelMap:
@@ -325,4 +274,35 @@ def _createMasks(image, imgsize, newResult, file, catalogue, saveCleanImage,
         hdu = fits.PrimaryHDU(data=mask, header=header)
         hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
-    return newResult, mask, starMask, image, tmpmask
+    newResult.rmax = calcRmax(mask, imgsize)
+    aperturepixmap = aperpixmap(imgsize, newResult.rmax, 9, 0.1)
+
+    # get centre of asymmetry
+    newResult.apix = minapix(img, mask, aperturepixmap, starMask)
+    angle = 180.
+
+    if asymmetry or allAsymmetry:
+        newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
+        if catalogue:
+            newResult.maskedPixelFraction = calcMaskedFraction(tmpmask, starMask, newResult.apix)
+
+    if shapeAsymmetry or allAsymmetry:
+        newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
+        angle = 90.
+        newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
+
+    if calculateSersic:
+        p = fitSersic(img, newResult.apix, newResult.fwhms, newResult.theta, starMask)
+        newResult.sersic_amplitude = p.amplitude.value
+        newResult.sersic_r_eff = p.r_eff.value
+        newResult.sersic_ellip = p.ellip.value
+        newResult.sersic_n = p.n.value
+        newResult.sersic_theta = p.theta.value
+        newResult.sersic_x_0 = p.x_0.value
+        newResult.sersic_y_0 = p.y_0.value
+
+    f = time.time()
+    timetaken = f - s
+    newResult.time = timetaken
+
+    return newResult

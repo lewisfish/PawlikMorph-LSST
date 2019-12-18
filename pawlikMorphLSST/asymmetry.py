@@ -10,7 +10,7 @@ __all__ = ["minapix", "calcA"]
 
 
 def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
-            starMask: np.ndarray) -> List[int]:
+            starMask=None) -> List[int]:
     """Function that finds the minimum asymmetry central pixel within the
        objects pixels of a given image.
        Selects a range of candidate centroids within the brightest region that
@@ -41,8 +41,11 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
         The minimum asymmetry pixel position.
     """
 
-    # mask the image with object mask and star mask if provided
-    imageMask = image * mask * starMask
+    if starMask is not None:
+        # mask the image with object mask and star mask if provided
+        imageMask = image * mask * starMask
+    else:
+        imageMask = image * mask
 
     # only want top 20% brightest pixels
     TWENTYPERCENT = 0.2
@@ -90,7 +93,7 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
 
 
 def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
-          centroid: List[int], angle: float, starMask: np.ndarray,
+          centroid: List[int], angle: float, starMask=None,
           noisecorrect=False) -> List[float]:
     """Function to calculate A, the asymmetry parameter. Near direct
        translation of IDL code.
@@ -128,15 +131,19 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
 
     """
 
+    if starMask is None:
+        starMaskCopy = np.ones_like(img)
+    else:
+        # cast to float so that rotate is happy
+        starMaskCopy = starMask.astype(np.float64)
+        # rotate the star mask angle degrees, so that star does not interfere
+        # with measurement
+        starMaskCopy *= transform.rotate(starMaskCopy, angle,
+                                         center=(cenpix_x, cenpix_y),
+                                         preserve_range=True, cval=1.)
+
     cenpix_x = centroid[0]
     cenpix_y = centroid[1]
-
-    # cast to float so that rotate is happy
-    starMaskCopy = starMask.astype(np.float64)
-    # rotate the star mask angle degrees, so that star does not interfere
-    # with measurement
-    starMaskCopy *= transform.rotate(starMaskCopy, angle, center=(cenpix_x, cenpix_y),
-                                 preserve_range=True, cval=1.)
 
     # mask image
     imgCopy = img * starMaskCopy
