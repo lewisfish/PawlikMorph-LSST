@@ -35,8 +35,10 @@ class Result:
     sersic_ellip: float = -99.
     sersic_theta: float = -99.
     time: float = 0.
+    # Flags that signify data may not be useful
     star_flag: bool = False
     maskedPixelFraction: float = -99.
+    objectEdge: bool = False
 
     def write(self, objectfile):
         '''Write out result as a row to a csv file'''
@@ -49,4 +51,5 @@ class Result:
                              f"{self.sersic_n}", f"{self.sersic_x_0}",
                              f"{self.sersic_y_0}", f"{self.sersic_ellip}",
                              f"{self.sersic_theta}", f"{self.time}",
-                             f"{self.star_flag}", f"{self.maskedPixelFraction}"])
+                             f"{self.star_flag}", f"{self.maskedPixelFraction}",
+                             f"{self.objectEdge}"])

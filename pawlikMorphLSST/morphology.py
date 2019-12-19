@@ -18,7 +18,7 @@ from .imageutils import maskstarsSEG
 from .objectMasker import objectOccluded
 from .pixmap import calcMaskedFraction
 from .pixmap import calcRmax
-from .pixmap import pixelmap
+from .pixmap import pixelmap, checkPixelmapEdges
 from .result import Result
 from .sersic import fitSersic
 from .skyBackground import skybgr
@@ -101,7 +101,8 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                           "Abgr", "As", "As90", "fwhms", "theta",
                           "sersic_amplitude", "sersic_r_eff", "sersic_n",
                           "sersic_x_0", "sersic_y_0", "sersic_ellip",
-                          "sersic_theta", "time", "star_flag"])
+                          "sersic_theta", "time", "star_flag",
+                          "Masked pixel fraction", "Object on image edge?"])
 
     if catalogue:
         outfile = outfolder / occludedSaveFile
@@ -243,7 +244,7 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
                                                                 catalogue, header)
 
         # remove star using images PSF to estimate stars radius
-        starMask = maskstarsPSF(img, newResult.objList, header, newResult.sky, numberSigmas)
+        starMask = maskstarsPSF(img, newResult.objList, header, newResult.sky, numberSigmas, adaptive=False)#, sky_err=newResult.sky_err)
         newResult.starMask = starMask
         mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
     else:
@@ -252,6 +253,9 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
             starMask = np.ones_like(img)
         except AttributeError:
             return newResult
+
+    # check if pixelmap touch edge and flag if it does.
+    newResult.objectEdge = checkPixelmapEdges(mask)
 
     img -= newResult.sky
 

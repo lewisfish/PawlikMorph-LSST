@@ -6,7 +6,7 @@ from skimage import transform
 
 from .apertures import distarr
 
-__all__ = ["pixelmap", "calcMaskedFraction", "calcRmax"]
+__all__ = ["pixelmap", "calcMaskedFraction", "calcRmax", "checkPixelmapEdges"]
 
 
 class _Error(Exception):
@@ -83,6 +83,46 @@ def calcMaskedFraction(oldMask: np.ndarray, starMask: np.ndarray,
     objectFraction = np.sum(oldMask)
 
     return 1. - (maskedFraction / objectFraction)
+
+
+def checkPixelmapEdges(mask: np.ndarray) -> bool:
+    '''Function to check if the pixelmap hits the edge of the image,
+       and flags if it does
+
+    Parameters
+    -------
+
+    mask : np.ndarray
+        pixelmap to check
+
+    Returns
+    ----------
+
+    flag : bool
+        If true then the pixelmap hits the edge of the image
+
+    '''
+
+    flag = True
+
+    summ = np.sum(mask[0, :])
+    if summ > 0:
+        return flag
+
+    summ = np.sum(mask[mask.shape[0]-1, :])
+    if summ > 0:
+        return flag
+
+    summ = np.sum(mask[:, 0])
+    if summ > 0:
+        return flag
+
+    summ = np.sum(mask[:, mask.shape[0]-1])
+    if summ > 0:
+        return flag
+
+    flag = False
+    return flag
 
 
 def pixelmap(image: np.ndarray, threshold: float, filterSize: int,

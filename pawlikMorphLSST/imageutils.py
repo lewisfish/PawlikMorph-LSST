@@ -153,7 +153,7 @@ def _calculateRadius(y, A, sigma):
 
 
 def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
-                 numSigmas=5.) -> np.ndarray:
+                 numSigmas=5., adaptive=True, sky_err=0.0) -> np.ndarray:
     '''Function that uses the PSF to estimate stars radius and then masks them
        from the image mask stars.
 
@@ -225,16 +225,58 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
         radius = numSigmas * _calculateRadius(skyMag, objectMag, sigma)
 
         # mask out star
-        aps = CircularAperture(pixelPos, r=radius)
-        masks = aps.to_mask(method="subpixel")
-        aperMask = np.where(masks.to_image(image.shape) > 0., 1., 0.)
+        # aps = CircularAperture(pixelPos, r=radius)
+        # masks = aps.to_mask(method="subpixel")
+        # aperMask = np.where(masks.to_image(image.shape) > 0., 1., 0.)
 
         newMask = _circle_mask(mask.shape, (pixelPos[1], pixelPos[0]), radius)
         mask = np.logical_or(mask, newMask)
-        mask = np.logical_or(mask, aperMask)
+        # mask = np.logical_or(mask, aperMask)
+        if adaptive:
+            extraExtent = blah(mask, pixelPos, image, skyCount, sky_err)
+
+            aps = CircularAperture(pixelPos, r=radius+extraExtent)
+            masks = aps.to_mask(method="subpixel")
+            aperMask = np.where(masks.to_image(image.shape) > 0., 1., 0.)
+            mask = np.logical_or(mask, aperMask)
+            tmp = image*~mask + ((skyCount+1000)*mask)
 
     # invert calculated mask so that future calculations work
     if len(objs) > 0:
         mask = ~mask
 
     return mask
+
+
+def blah(mask, pixelPos, image, skyCount, sky_err):
+    tmp = image*~mask + ((skyCount+1000)*mask)
+    yinit = tmp[int(pixelPos[1]), int(pixelPos[0])]
+    imgsize = image.shape[0]
+
+    if pixelPos[1] > int(imgsize/2):
+        delta = 1
+    else:
+        delta = -1
+
+    if pixelPos[1] >= imgsize-1 or pixelPos[1] <= 0:
+        return 0
+
+    ypos = int(pixelPos[1]) + delta
+    ys = [yinit]
+
+    for i in range(int(imgsize / 2)):
+
+        ys.append(tmp[ypos, int(pixelPos[0])])
+        ypos += delta
+        if ypos >= imgsize or ypos < 0:
+            break
+
+    thres = np.mean(ys) + sky_err
+    arr = np.where(ys > thres)[0]
+    for i, val in enumerate(arr):
+        if i+1 > arr.shape[0]-1:
+            break
+        if val + 1 != arr[i+1]:
+            break
+    extraExtent = i
+    return extraExtent
