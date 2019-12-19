@@ -8,7 +8,41 @@ from scipy.optimize import brentq
 __all__ = ["fitSersic"]
 
 
-def fractionTotalFLuxEllipse(a, image, b, theta, centre, totalsum):
+def fractionTotalFLuxEllipse(a: float, image: np.ndarray, b: float,
+                             theta: float, centre: List[float],
+                             totalsum: float) -> float:
+    '''Function calculates the fraction of the total flux for the given
+       elliptical parameters
+
+       Parameters
+       ----------
+
+        a : float
+            Semi-major axis or width. Must be positive
+
+        image : np.ndarray
+            image for which flux will be counted
+
+        b : float
+            Ellipses semi-minor axis or hight
+
+        theta : float
+            Rotation of ellipse w.r.t the positive x axis anticlockwise
+
+        centre : List[float]
+            centre of the ellipse.
+
+        totalsum : float
+            total flux of the object.
+
+       Returns
+       -------
+
+       The fraction of the total flux of the object as defined by the input
+       parameters minus 50% so that this function can be used to find a root at
+       50% total flux : float
+
+    '''
 
     apCur = EllipticalAperture(centre, a, b, theta)
     curSum = apCur.do_photometry(image, method="exact")[0][0]

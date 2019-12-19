@@ -16,8 +16,9 @@ from .helpers import checkFile
 from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
 from .objectMasker import objectOccluded
-from .pixmap import pixelmap
 from .pixmap import calcMaskedFraction
+from .pixmap import calcRmax
+from .pixmap import pixelmap
 from .result import Result
 from .sersic import fitSersic
 from .skyBackground import skybgr
@@ -208,12 +209,9 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
 
     s = time.time()
 
-    # clean image of external sources
-    img = maskstarsSEG(img)
-
     # get sky background value and error
     try:
-        newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(img, imgsize, file, largeImage, imageSource)
+        newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(img, file=file, largeImage=largeImage, imageSource=imageSource)
     except AttributeError:
         # TODO can fail silently if some other attribute error is raised!
         filename = file.name
@@ -231,7 +229,6 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
         hdu.writeto(outfile, overwrite=True, output_verify='ignore')
         print(" ")
         return newResult
-
 
     if catalogue:
         # if a star catalogue is provided calculate pixelmap and then see
@@ -258,6 +255,9 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
 
     img -= newResult.sky
 
+    # clean image of external sources
+    img = maskstarsSEG(img)
+
     if saveCleanImage:
         filename = file.name
         filename = "clean_" + filename
@@ -274,7 +274,7 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
         hdu = fits.PrimaryHDU(data=mask, header=header)
         hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
-    newResult.rmax = calcRmax(mask, imgsize)
+    newResult.rmax = calcRmax(mask)
     aperturepixmap = aperpixmap(imgsize, newResult.rmax, 9, 0.1)
 
     # get centre of asymmetry

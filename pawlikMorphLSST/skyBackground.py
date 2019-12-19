@@ -3,12 +3,12 @@ from typing import List, Tuple
 import warnings
 
 import numpy as np
-
+from astropy.convolution import Gaussian2DKernel
 from astropy.io import fits
 from astropy.modeling import models, fitting
-from astropy.stats import sigma_clipped_stats
+from astropy.stats import sigma_clipped_stats, gaussian_fwhm_to_sigma
 from astropy.utils.exceptions import AstropyWarning
-from photutils import aperture
+from photutils import aperture, detect_sources, detect_threshold
 from scipy import optimize
 
 from .apertures import distarr
@@ -124,6 +124,16 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
     cenpix = np.array([int(npix/2) + 1, int(npix/2) + 1])
     distarrvar = distarr(npix, npix, cenpix)
 
+    # check if there are any objects in the image
+    sigma = 3.0 * gaussian_fwhm_to_sigma
+    kernel = Gaussian2DKernel(sigma, x_size=3, y_size=3)
+    kernel.normalize()
+    threshold = detect_threshold(img, 1.5)
+    segm = detect_sources(img, threshold, npixels=8, filter_kernel=kernel)
+
+    if segm is None:
+        raise _SkyError("No object in image")
+
     # Define skyregion by fitting a Gaussian to the galaxy and computing on all
     # outwith this
     try:
@@ -133,7 +143,8 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
 
     skyMask, skyRegion = _getSkyRegion(img, distarrvar, r_in, fwhms, cenpix, theta)
 
-    if skyMask.count() < 300:
+    # if r_in massive then image may contain on object
+    if skyMask.count() < 300 or r_in > imgsize * 3:
         # if skyregion too small try with more robust Gaussian fitter
         r_in, fwhms, theta = _fitAltGauss(img, smallimg)
         skyMask, skyRegion = _getSkyRegion(img, distarrvar, r_in, fwhms, cenpix, theta)

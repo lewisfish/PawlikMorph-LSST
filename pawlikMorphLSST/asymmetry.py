@@ -131,6 +131,9 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
 
     """
 
+    cenpix_x = centroid[0]
+    cenpix_y = centroid[1]
+
     if starMask is None:
         starMaskCopy = np.ones_like(img)
     else:
@@ -141,9 +144,6 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
         starMaskCopy *= transform.rotate(starMaskCopy, angle,
                                          center=(cenpix_x, cenpix_y),
                                          preserve_range=True, cval=1.)
-
-    cenpix_x = centroid[0]
-    cenpix_y = centroid[1]
 
     # mask image
     imgCopy = img * starMaskCopy
