@@ -132,20 +132,23 @@ def _calculateRadius(y, A, sigma):
     ''' function that calculates the radius of a Gaussian for a given y
         y = A * exp(*x^2/(s*sig^2))
 
-        Parameters
-        ----------
+    Parameters
+    ----------
 
-        y : float
+    y : float
+        y parameter of Gaussian function.
 
-        A : float
+    A : float
+        Amplitude of Gaussian function.
 
-        sigma : float
+    sigma : float
+        Sigma parameters for Gaussian function.
 
-        Returns
-        -------
+    Returns
+    -------
 
-        Radius : float
-            Radius of Gaussian
+    Radius : float
+        Radius of Gaussian
 
     '''
 
@@ -233,7 +236,7 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
         mask = np.logical_or(mask, newMask)
         # mask = np.logical_or(mask, aperMask)
         if adaptive:
-            extraExtent = blah(mask, pixelPos, image, skyCount, sky_err)
+            extraExtent = _calculateAdaptiveRadius(mask, pixelPos, image, skyCount, sky_err)
 
             aps = CircularAperture(pixelPos, r=radius+extraExtent)
             masks = aps.to_mask(method="subpixel")
@@ -248,29 +251,67 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
     return mask
 
 
-def blah(mask, pixelPos, image, skyCount, sky_err):
-    tmp = image*~mask + ((skyCount+1000)*mask)
-    yinit = tmp[int(pixelPos[1]), int(pixelPos[0])]
+def _calculateAdaptiveRadius(mask: np.ndarray, pixelPos: List[float],
+                             image: np.ndarray, skyCount: float,
+                             sky_err: float) -> int:
+    '''Function calculates the "real" radius of the star to mask out to.
+        Achieves this by moving from the centre of the star in the opposite
+        direction of the object of interest, and checking if there is a large
+        positive discontinuity in this line profile of the flux.
+
+    Parameters
+    ----------
+
+    mask : np.ndarray
+        Pixelmap of object
+
+    pixelPos : List[float]
+        x and y position of star to be masked.
+
+    image : np.ndarray
+        Image in which the star is to be masked.
+
+    skyCount : float
+        Sky background value.
+
+    sky_err : float
+        Sky background error.
+
+    Returns
+    -------
+
+    extraExtent : int
+        Extra radius in pixels to mask star to.
+
+    '''
+
+    # calculate masked image by giving the stars mask the value of the sky (unsoftware biased)
+    maskedImage = image*~mask + ((skyCount+1000)*mask)
+    yinit = maskedImage[int(pixelPos[1]), int(pixelPos[0])]
     imgsize = image.shape[0]
 
+    # get direction to move in
     if pixelPos[1] > int(imgsize/2):
         delta = 1
     else:
         delta = -1
 
+    # if on edge return
     if pixelPos[1] >= imgsize-1 or pixelPos[1] <= 0:
         return 0
 
     ypos = int(pixelPos[1]) + delta
     ys = [yinit]
 
+    # move along line away from analysis
     for i in range(int(imgsize / 2)):
 
-        ys.append(tmp[ypos, int(pixelPos[0])])
+        ys.append(maskedImage[ypos, int(pixelPos[0])])
         ypos += delta
         if ypos >= imgsize or ypos < 0:
             break
 
+    # if flux profile is above threshold then we mask out to this distance
     thres = np.mean(ys) + sky_err
     arr = np.where(ys > thres)[0]
     for i, val in enumerate(arr):
@@ -278,5 +319,7 @@ def blah(mask, pixelPos, image, skyCount, sky_err):
             break
         if val + 1 != arr[i+1]:
             break
+
     extraExtent = i
+
     return extraExtent

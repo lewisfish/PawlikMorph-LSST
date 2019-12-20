@@ -174,6 +174,16 @@ def _analyseImageParsl(file, outfolder, filterSize, asymmetry,
                        numberSigmas, mask):
     '''Helper function so that Parsl can run
 
+    Parameters
+    ----------
+
+    See _analyseImage
+
+    Returns
+    -------
+
+    See _analyseImage
+
     '''
 
     return _analyseImage(file, outfolder, filterSize, asymmetry,
