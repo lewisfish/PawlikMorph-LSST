@@ -92,7 +92,10 @@ def getFiles(imgSource, file=None, folder=None):
 
     if folder:
         # Get all relevant files in folder
-        return Path(folder).glob(f"{imgSource}cutout*.fits")
+        if imgSource == "none":
+            return Path(folder).glob(f"cutout*.fits")
+        else:
+            return Path(folder).glob(f"{imgSource}cutout*.fits")
     else:
         # just single file so place in a generator manually
         return (Path(file) for i in range(1))

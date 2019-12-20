@@ -25,10 +25,13 @@ if __name__ == '__main__':
                         help="Save cleaned image.")
 
     parser.add_argument("-li", "--largeimage", action="store_true",
-                        help="Use large cutout for sky background estimation.")
+                        help="Use large cutout for sky background estimation.\
+                        Expects the name of the large file to be\
+                        [imageSource]lcutout_[RA][DEC].fits")
     parser.add_argument("-src", "--imgsource", type=str, default="sdss",
-                        choices=["sdss", "hsc"], help="Telescope source of the\
-                        image. Default is SDSS.")
+                        choices=["sdss", "hsc", "none"], help="Telescope source\
+                        of the image. Default is SDSS. This option specifies\
+                        the filename format as [imgsource]cutout_[RA][DEC].fits")
     parser.add_argument("-cc", "--catalogue", type=str, help="Check if any\
                          object in the provided catalogue occludes the\
                          analysed object.")
@@ -45,7 +48,16 @@ if __name__ == '__main__':
     parser.add_argument("-n", "--cores", type=int, default=1, help="Number of\
                         cores/process to use in calculation")
 
+    parser.add_argument("-m", "--mask", action="store_true", help="If this\
+                            option is provided then the script expects there\
+                            to be precomputed masks in the format\
+                            'pixelmap_' + file.name in the same folder as the\
+                            images for analysis")
+
     args = parser.parse_args()
+
+    if args.mask and args.catalogue:
+        raise ValueError("Can't provide both a star catalogue and precomputed mask!")
 
     files = helpers.getFiles(args.imgsource, file=args.file,
                              folder=args.folder)
@@ -64,7 +76,8 @@ if __name__ == '__main__':
                                         filterSize=args.filtersize,
                                         cores=args.cores,
                                         parallelLibrary=args.parlib,
-                                        numberSigmas=args.numsig)
+                                        numberSigmas=args.numsig,
+                                        mask=args.mask)
 
     print(" ")
     for i in results:

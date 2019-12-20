@@ -1,10 +1,12 @@
 import csv
 import time
+import warnings
 from multiprocessing import Pool
 
 import numpy as np
 import parsl
 from astropy.io import fits
+from astropy.utils.exceptions import AstropyWarning
 from parsl.app.app import python_app
 from parsl.configs.local_threads import config
 
@@ -46,7 +48,8 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                    allAsymmetry=True, calculateSersic=False, savePixelMap=True,
                    saveCleanImage=True, imageSource=None, catalogue=None,
                    largeImage=False, paramsaveFile="parameters.csv",
-                   occludedSaveFile="occluded-object-locations.csv"):
+                   occludedSaveFile="occluded-object-locations.csv",
+                   mask=False):
     '''
     Calculates various morphological parameters of galaxies from an image.
 
@@ -131,7 +134,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                                         calculateSersic, savePixelMap,
                                         saveCleanImage, imageSource, catalogue,
                                         largeImage, paramsaveFile, occludedSaveFile,
-                                        numberSigmas)
+                                        numberSigmas, mask)
             outputs.append(output)
         results = [i.result() for i in outputs]
     else:
@@ -142,7 +145,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                                    calculateSersic, savePixelMap,
                                    saveCleanImage, imageSource, catalogue,
                                    largeImage, paramsaveFile, occludedSaveFile,
-                                   numberSigmas)
+                                   numberSigmas, mask)
             results.append(result)
 
     # write out results
@@ -168,7 +171,7 @@ def _analyseImageParsl(file, outfolder, filterSize, asymmetry,
                        calculateSersic, savePixelMap,
                        saveCleanImage, imageSource, catalogue,
                        largeImage, paramsaveFile, occludedSaveFile,
-                       numberSigmas):
+                       numberSigmas, mask):
     '''Helper function so that Parsl can run
 
     '''
@@ -178,15 +181,74 @@ def _analyseImageParsl(file, outfolder, filterSize, asymmetry,
                          calculateSersic, savePixelMap,
                          saveCleanImage, imageSource, catalogue,
                          largeImage, paramsaveFile, occludedSaveFile,
-                         numberSigmas)
+                         numberSigmas, mask)
 
 
 def _analyseImage(file, outfolder, filterSize, asymmetry,
                   shapeAsymmetry, allAsymmetry,
                   calculateSersic, savePixelMap,
                   saveCleanImage, imageSource, catalogue,
-                  largeImage, paramsaveFile, occludedSaveFile, numberSigmas):
+                  largeImage, paramsaveFile, occludedSaveFile, numberSigmas,
+                  mask):
     '''The main function that calls all the underlying scientific analysis code
+
+    Parameters
+    ----------
+
+    file : Path object
+        name of file to analyse
+
+    outfolder : str or Path object
+        folder where output files are to be saved
+
+    filterSize : int
+        Size of mean filter
+
+    asymmetry : bool
+        If true calculate asymmetry
+
+    shapeAsymmetry : bool
+        If true calculate shape asymmetry
+
+    allAsymmetry : bool
+        If true calculate all asymmetries
+
+    calculateSersic : bool
+        If true calculate Sersic profile
+
+    savePixelMap : bool
+        If true save pixelmap
+
+    saveCleanImage : bool
+        If true save cleaned image
+
+    imageSource : str
+        Contains the source of the image, i.e which telescope took the image
+
+    catalogue : str or Path object
+        If provided, contains the name of the file to be used as a star catalogue
+
+    largeImage : bool
+        If true use a larger image to estimate sky background value
+
+    paramsaveFile : str
+        Contains the name to save the parameters to
+
+    occludedSaveFile : str
+        Contains the name of the file to save the occluded objects to
+
+    numberSigmas : float
+        Number of sigmas to mask stars to.
+
+    mask : bool
+        If true then use "pixelmap_" + file as pixelmap, and don't
+        calculate pixelmap.
+
+    Returns
+    -------
+
+    newResult : Result object
+        Data class containing calculated parameters and flags
 
     '''
 
@@ -231,31 +293,38 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
         print(" ")
         return newResult
 
-    if catalogue:
-        # if a star catalogue is provided calculate pixelmap and then see
-        # if any star in catalogue overlaps pixelmap
-        try:
-            tmpmask = pixelmap(img, newResult.sky + newResult.sky_err,
-                               filterSize)
-        except AttributeError:
-            return newResult
+    if not mask:
+        if catalogue:
+            # if a star catalogue is provided calculate pixelmap and then see
+            # if any star in catalogue overlaps pixelmap
+            try:
+                tmpmask = pixelmap(img, newResult.sky + newResult.sky_err,
+                                   filterSize)
+            except AttributeError:
+                return newResult
 
-        newResult.star_flag, newResult.objList = objectOccluded(tmpmask, file.name,
-                                                                catalogue, header)
+            newResult.star_flag, newResult.objList = objectOccluded(tmpmask, file.name,
+                                                                    catalogue, header)
 
-        # remove star using images PSF to estimate stars radius
-        starMask = maskstarsPSF(img, newResult.objList, header, newResult.sky, numberSigmas, adaptive=False)#, sky_err=newResult.sky_err)
-        newResult.starMask = starMask
-        mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
+            # remove star using images PSF to estimate stars radius
+            starMask = maskstarsPSF(img, newResult.objList, header, newResult.sky, numberSigmas, adaptive=False)#, sky_err=newResult.sky_err)
+            newResult.starMask = starMask
+            mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
+        else:
+            try:
+                mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize)
+                starMask = np.ones_like(img)
+            except AttributeError:
+                return newResult
+
+        # check if pixelmap touch edge and flag if it does.
+        newResult.objectEdge = checkPixelmapEdges(mask)
     else:
-        try:
-            mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize)
-            starMask = np.ones_like(img)
-        except AttributeError:
-            return newResult
-
-    # check if pixelmap touch edge and flag if it does.
-    newResult.objectEdge = checkPixelmapEdges(mask)
+        with warnings.catch_warnings():
+            # ignore invalid card warnings
+            warnings.simplefilter('ignore', category=AstropyWarning)
+            mask = fits.getdata("pixelmap_" + file.name)
+        starMask = np.ones_like(img)
 
     img -= newResult.sky
 

@@ -50,7 +50,7 @@ def skybgr(img: np.ndarray, file=None, largeImage=False,
         If true algorithm uses larger image to estimate sky background.
         If False uses provided image.
 
-    imgSource : str, optional
+    imageSource : str, optional
         Telescope source of the image. Default is SDSS
 
     Returns
@@ -75,10 +75,10 @@ def skybgr(img: np.ndarray, file=None, largeImage=False,
 
     if largeImage:
         filename = file.name
-        if imageSource == "sdss":
-            filename = filename.replace("sdss", "sdssl", 1)
-        elif imageSource == "hsc":
-            filename = filename.replace("hsc", "hscl", 1)
+        if imageSource != "none":
+            filename = filename.replace(imageSource, imageSource+"l", 1)
+        else:
+            filename = filename.replace("cutout", "cutoutl", 1)
 
         infile = file.parents[0] / _Path(filename)
         try:
