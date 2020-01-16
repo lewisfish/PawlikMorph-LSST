@@ -5,7 +5,7 @@ Replicates the ability to prepare images, generate object binary masks and calcu
 
 ## Usage
 
-./imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sci] [-li] [-src {sdss,hsc}] [-cc CATALOGUE] [-sersic] [-fs {1, 3, 5, 7, 9, 11, 13, 15}]
+python imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sci] [-li] [-src {sdss,hsc}] [-cc CATALOGUE] [-sersic] [-fs {1, 3, 5, 7, 9, 11, 13, 15}]
 
 
  - -h, shows the help screen
