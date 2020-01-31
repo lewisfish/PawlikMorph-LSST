@@ -121,7 +121,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                          calculateSersic, savePixelMap,
                          saveCleanImage, imageSource, catalogue,
                          largeImage, paramsaveFile, occludedSaveFile,
-                         numberSigmas])
+                         numberSigmas, mask])
         results = pool.map(engine, files)
         pool.close()
         pool.join()
