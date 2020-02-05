@@ -1,15 +1,16 @@
 name: pawlikMorph-lsst
 channels:
   - conda-forge
-  - anaconda-fusion
   - defaults
 dependencies:
-  - scikit-image
+  - matplotlib
   - numpy
+  - numba
+  - scikit-image
   - astropy
   - scipy
-  - numba
-  - matplotlib
-  - photutils
   - pandas
+  - photutils
+  - parsl
+  - jupyter
 
