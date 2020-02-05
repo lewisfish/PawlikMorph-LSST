@@ -32,7 +32,7 @@ First clone this repo. Then either use pip or conda to install dependencies:
   - pip install --user --requirement requirements.txt
   
   Or
-  - conda env create -f enviroment.yml
+  - conda env create -f environment.yml
 
 ## Requirments
  - Python 3.7+
@@ -42,6 +42,9 @@ First clone this repo. Then either use pip or conda to install dependencies:
  - Scikit-image 0.14.0+
  - Pandas 0.25.3+
  - photutils 0.7.1+
+ - scipy 1.3.2+
+ - parsl 0.9.0+
+
  
  If diagnostic.py is used 
  - matplotlib
