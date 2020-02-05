@@ -91,6 +91,9 @@ def getFiles(imgSource, file=None, folder=None):
     '''
 
     if folder:
+        if folder.find(".fits") != -1:
+            raise _WrongCmdLineArguments("Specified folder option but provided single file!!!")
+
         # Get all relevant files in folder
         if imgSource == "none":
             return Path(folder).glob(f"cutout*.fits")

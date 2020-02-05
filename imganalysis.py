@@ -61,6 +61,10 @@ if __name__ == '__main__':
 
     files = helpers.getFiles(args.imgsource, file=args.file,
                              folder=args.folder)
+    if args.file:
+        folder = False
+    else:
+        folder = Rrue
 
     curfolder, outfolder = helpers.getLocation(file=args.file,
                                                folder=args.folder)
@@ -82,4 +86,4 @@ if __name__ == '__main__':
     print(" ")
     for i in results:
         print(i.file)
-        diagnostic.make_figure(i, save=False, show=True)
+        diagnostic.make_figure(i, folder, save=False, show=True)
