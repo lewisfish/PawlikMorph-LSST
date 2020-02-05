@@ -62,9 +62,10 @@ if __name__ == '__main__':
     files = helpers.getFiles(args.imgsource, file=args.file,
                              folder=args.folder)
     if args.file:
+        print("here")
         folder = False
     else:
-        folder = Rrue
+        folder = True
 
     curfolder, outfolder = helpers.getLocation(file=args.file,
                                                folder=args.folder)

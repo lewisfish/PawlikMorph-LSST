@@ -73,7 +73,7 @@ def RADECtopixel(objList: List[List[float]], header) -> List[List[float]]:
     objList : List[List[float]]
         List of list of RA, DEC, object type and psfMag_r
 
-    header : 
+    header :
 
     Returns
     -------
@@ -264,7 +264,7 @@ def make_twotwo(ax, img, modelImage, listofStarstoPlot, result):
     ax.set_title("Sersic fit residual")
 
 
-def make_figure(result, file, save=False, show=False):
+def make_figure(result, folder, save=False, show=False):
     '''Function plots results from image analysis. Plots two or four images.
        Top row: original image  and object map with stars overplotted if any.
        bottom row: Sersic fit and residual with stars overplotted if any.
@@ -275,7 +275,7 @@ def make_figure(result, file, save=False, show=False):
     result : Results class
         Data class container of calculated results.
 
-    file : bool
+    folder : bool
         If True then adjusts path to read file from.
 
     save : bool, optional
@@ -296,10 +296,10 @@ def make_figure(result, file, save=False, show=False):
         try:
             img, header = fits.getdata(result.cleanImage, header=True)
         except ValueError:
-            if file:
-                img, header = fits.getdata(result.outfolder.parent / (result.file), header=True)
-            else:
+            if folder:
                 img, header = fits.getdata(result.outfolder.parent / ("data/" + result.file), header=True)
+            else:
+                img, header = fits.getdata(result.outfolder.parent / (result.file), header=True)
 
         try:
             mask = fits.getdata(result.pixelMapFile)
