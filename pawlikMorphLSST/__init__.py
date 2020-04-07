@@ -3,5 +3,5 @@
 '''
 
 __all__ = ["gaussfitter", "pixmap", "apertures", "asymmetry",
-           "imageutils", "objectMasker", "sersic", "result", "morphology",
-           "helpers", "skyBackground"]
+           "imageutils", "objectMasker", "sersic", "result", "main",
+           "morphologyMeasures", "helpers", "skyBackground"]

@@ -17,7 +17,7 @@ from .asymmetry import minapix
 from .helpers import checkFile
 from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
-from .morphologyMeasure import gini, m20, concentration, clumpiness
+from .morphologyMeasures import gini, m20, concentration, clumpiness
 from .objectMasker import objectOccluded
 from .pixmap import calcMaskedFraction
 from .pixmap import calcRmax
