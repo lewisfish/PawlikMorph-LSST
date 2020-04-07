@@ -50,7 +50,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                    saveCleanImage=True, imageSource=None, catalogue=None,
                    largeImage=False, paramsaveFile="parameters.csv",
                    occludedSaveFile="occluded-object-locations.csv",
-                   mask=False):
+                   mask=False, CAS=True):
     '''
     Calculates various morphological parameters of galaxies from an image.
 
@@ -89,6 +89,8 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
     occludedSaveFile: str or Path object
         Name of file where objects that occlude the object of interest are
         saved
+    CAS : bool
+        If Tur, calculates CAS parameters
 
     Returns
     -------
@@ -122,7 +124,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                          calculateSersic, savePixelMap,
                          saveCleanImage, imageSource, catalogue,
                          largeImage, paramsaveFile, occludedSaveFile,
-                         numberSigmas, mask])
+                         numberSigmas, mask, CAS])
         results = pool.map(engine, files)
         pool.close()
         pool.join()
@@ -135,7 +137,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                                         calculateSersic, savePixelMap,
                                         saveCleanImage, imageSource, catalogue,
                                         largeImage, paramsaveFile, occludedSaveFile,
-                                        numberSigmas, mask)
+                                        numberSigmas, mask, CAS)
             outputs.append(output)
         results = [i.result() for i in outputs]
     else:
@@ -146,7 +148,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                                    calculateSersic, savePixelMap,
                                    saveCleanImage, imageSource, catalogue,
                                    largeImage, paramsaveFile, occludedSaveFile,
-                                   numberSigmas, mask)
+                                   numberSigmas, mask, CAS)
             results.append(result)
 
     # write out results
@@ -172,7 +174,7 @@ def _analyseImageParsl(file, outfolder, filterSize, asymmetry,
                        calculateSersic, savePixelMap,
                        saveCleanImage, imageSource, catalogue,
                        largeImage, paramsaveFile, occludedSaveFile,
-                       numberSigmas, mask):
+                       numberSigmas, mask, CAS):
     '''Helper function so that Parsl can run
 
     Parameters
@@ -192,7 +194,7 @@ def _analyseImageParsl(file, outfolder, filterSize, asymmetry,
                          calculateSersic, savePixelMap,
                          saveCleanImage, imageSource, catalogue,
                          largeImage, paramsaveFile, occludedSaveFile,
-                         numberSigmas, mask)
+                         numberSigmas, mask, CAS)
 
 
 def _analyseImage(file, outfolder, filterSize, asymmetry,
@@ -200,7 +202,7 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
                   calculateSersic, savePixelMap,
                   saveCleanImage, imageSource, catalogue,
                   largeImage, paramsaveFile, occludedSaveFile, numberSigmas,
-                  mask):
+                  mask, CAS):
     '''The main function that calls all the underlying scientific analysis code
 
     Parameters
@@ -254,6 +256,10 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
     mask : bool
         If true then use "pixelmap_" + file as pixelmap, and don't
         calculate pixelmap.
+
+    CAS : bool
+        If True, then calculate gini, clumpiness/smoothness, M20, and
+        concentration morphology parameters.
 
     Returns
     -------
@@ -384,6 +390,14 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
         newResult.sersic_theta = p.theta.value
         newResult.sersic_x_0 = p.x_0.value
         newResult.sersic_y_0 = p.y_0.value
+
+    if CAS:
+        newResult.gini = gini(img, mask)
+        newResult.r20, newResult.r80 = calcR20_R80(img, newResult.apix, radius) # need to figure out what this radius should be...
+        # not yet implemented yet
+        newResult.m20 = m20(img, mask)
+        newResult.S = clumpiness()
+        newResult.C = concentration(newResult.r20, newResult.r80)
 
     f = time.time()
     timetaken = f - s

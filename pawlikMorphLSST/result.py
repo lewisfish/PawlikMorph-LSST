@@ -26,6 +26,13 @@ class Result:
     sky_err: float = 99.
     fwhms: List[float] = field(default_factory=lambda: [-99., -99.])
     theta: float = -99.
+    # CAS
+    r20: float = -99.
+    r80: float = -99.
+    C: float = -99.    # Concentration
+    gini: float = -99.
+    m20: float = -99.
+    S: float = -99.    # clumpiness/smoothness
     # Sersic fit values
     sersic_amplitude: float = -99.
     sersic_r_eff: float = -99.

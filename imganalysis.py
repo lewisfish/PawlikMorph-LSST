@@ -54,6 +54,10 @@ if __name__ == '__main__':
                             'pixelmap_' + file.name in the same folder as the\
                             images for analysis")
 
+    parser.add_argument("-cas", "--cas", action="store_true", help="If this\
+                        option is enabled, the CAS parameters are calculated\
+                        (Gini, M20, r20, r80, concentation, smoothness)")
+
     args = parser.parse_args()
 
     if args.mask and args.catalogue:
@@ -82,7 +86,8 @@ if __name__ == '__main__':
                                   cores=args.cores,
                                   parallelLibrary=args.parlib,
                                   numberSigmas=args.numsig,
-                                  mask=args.mask)
+                                  mask=args.mask,
+                                  CAS=args.cas)
 
     print(" ")
     for i in results:
