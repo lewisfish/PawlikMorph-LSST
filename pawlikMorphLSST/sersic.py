@@ -8,9 +8,9 @@ from scipy.optimize import brentq
 __all__ = ["fitSersic"]
 
 
-def fractionTotalFLuxEllipse(a: float, image: np.ndarray, b: float,
-                             theta: float, centre: List[float],
-                             totalsum: float) -> float:
+def _fractionTotalFLuxEllipse(a: float, image: np.ndarray, b: float,
+                              theta: float, centre: List[float],
+                              totalsum: float) -> float:
     '''Function calculates the fraction of the total flux for the given
        elliptical parameters
 
@@ -92,8 +92,8 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float],
     a = 2. * max(fwhms)
     ellip = 1. - (b/a)
 
-    ap_total = EllipticalAperture(centroid, a, b, theta)
-    totalSum = ap_total.do_photometry(imageCopy, method="exact")[0][0]
+    apertureTotal = EllipticalAperture(centroid, a, b, theta)
+    totalSum = apertureTotal.do_photometry(imageCopy, method="exact")[0][0]
 
     # get bracketing values for root finder to find r_eff
     deltaA = (a / 100.) * 2.
@@ -101,8 +101,8 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float],
     aMin = 0
     aMax = 0
     while True:
-        apCur = EllipticalAperture(centroid, aCurrent, b, theta)
-        currentSum = apCur.do_photometry(imageCopy, method="exact")[0][0]
+        apertureCurrent = EllipticalAperture(centroid, aCurrent, b, theta)
+        currentSum = apertureCurrent.do_photometry(imageCopy, method="exact")[0][0]
         currentFraction = currentSum / totalSum
         if currentFraction <= .5:
             aMin = aCurrent
@@ -111,7 +111,7 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float],
         aCurrent -= deltaA
 
     # get root
-    r_eff = brentq(fractionTotalFLuxEllipse, aMin, aMax, args=(imageCopy, b, theta,
+    r_eff = brentq(_fractionTotalFLuxEllipse, aMin, aMax, args=(imageCopy, b, theta,
                    centroid, totalSum))
 
     # calculate amplitude at r_eff
