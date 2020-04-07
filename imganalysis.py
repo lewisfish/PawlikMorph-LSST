@@ -1,7 +1,7 @@
 if __name__ == '__main__':
     from argparse import ArgumentParser
 
-    from pawlikMorphLSST import helpers, diagnostic, morphology
+    from pawlikMorphLSST import helpers, diagnostic, main
 
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
@@ -70,19 +70,19 @@ if __name__ == '__main__':
     curfolder, outfolder = helpers.getLocation(file=args.file,
                                                folder=args.folder)
 
-    results = morphology.calcMorphology(files, outfolder,
-                                        allAsymmetry=args.Aall,
-                                        calculateSersic=args.sersic,
-                                        savePixelMap=args.savepixmap,
-                                        saveCleanImage=args.savecleanimg,
-                                        imageSource=args.imgsource,
-                                        largeImage=args.largeimage,
-                                        catalogue=args.catalogue,
-                                        filterSize=args.filtersize,
-                                        cores=args.cores,
-                                        parallelLibrary=args.parlib,
-                                        numberSigmas=args.numsig,
-                                        mask=args.mask)
+    results = main.calcMorphology(files, outfolder,
+                                  allAsymmetry=args.Aall,
+                                  calculateSersic=args.sersic,
+                                  savePixelMap=args.savepixmap,
+                                  saveCleanImage=args.savecleanimg,
+                                  imageSource=args.imgsource,
+                                  largeImage=args.largeimage,
+                                  catalogue=args.catalogue,
+                                  filterSize=args.filtersize,
+                                  cores=args.cores,
+                                  parallelLibrary=args.parlib,
+                                  numberSigmas=args.numsig,
+                                  mask=args.mask)
 
     print(" ")
     for i in results:
