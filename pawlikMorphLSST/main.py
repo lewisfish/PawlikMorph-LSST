@@ -17,7 +17,7 @@ from .asymmetry import minapix
 from .helpers import checkFile
 from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
-from .morphologyMeasures import gini, m20, concentration, clumpiness
+from .morphologyMeasures import gini, m20, concentration, clumpiness, calcR20_R80, calcPetrosianRadius
 from .objectMasker import objectOccluded
 from .pixmap import calcMaskedFraction
 from .pixmap import calcRmax
@@ -392,12 +392,14 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
         newResult.sersic_y_0 = p.y_0.value
 
     if CAS:
-        newResult.gini = gini(img, mask)
-        newResult.r20, newResult.r80 = calcR20_R80(img, newResult.apix, radius) # need to figure out what this radius should be...
-        # not yet implemented yet
-        newResult.m20 = m20(img, mask)
-        newResult.S = clumpiness()
+        pr, meanFluxatPr = calcPetrosianRadius(img, newResult.apix, newResult.fwhms, newResult.theta)
+        newResult.r20, newResult.r80 = calcR20_R80(img, newResult.apix, newResult.rmax)
+        newResult.gini = gini(img > meanFluxatPr)  # not accurate yet...
         newResult.C = concentration(newResult.r20, newResult.r80)
+
+        # not yet implemented yet
+        # newResult.m20 = m20(img, mask)
+        # newResult.S = clumpiness()
 
     f = time.time()
     timetaken = f - s
