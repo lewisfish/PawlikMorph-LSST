@@ -102,16 +102,55 @@ def calcPetrosianRadius(image, centroid, fwhms, theta):
 
 
 def concentration(r20, r80):
+    '''Function calculates the concentration index from the growth curve radii
+       R20 and R80.
+
+    Parameters
+    ----------
+
+    r20 : float
+        Radius at 20% of light
+    r80 : float
+        Radius at 80% of light
+
+    Returns
+    -------
+    C : float
+        The concentration index
+
+    '''
 
     C = 5.0 * np.log10(r80 / r20)
 
     return C
 
 
-def gini(image):
+def gini(image, flux):
+    ''' Function calculates the Gini index of a Galaxy.
 
-    # imgMasked = np.abs(image * pixelmap)
-    G = giniPhotutils(image > 0)
+    Parameters
+    ----------
+
+    image : image, 2d np.ndarray
+        Image from which the Gini index shall be calculated
+
+    flux : float
+        The elliptical Petrosian flux, at which is defined as the cutoff for
+        calculating the Gini index.
+
+
+    Returns
+    -------
+
+    G : float
+        The Gini index.
+
+    '''
+
+    # Only calculate the Gini index on pixels that belong to the galaxy where
+    # the flux is greater than the elliptical Petrosian radius.
+    img = image[np.abs(image) >= flux]
+    G = giniPhotutils(img)
 
     return G
 
@@ -121,4 +160,4 @@ def m20(image, pixelmap):
 
 
 def clumpiness():
-    pass
+    pass    
