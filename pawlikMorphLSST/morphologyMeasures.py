@@ -1,10 +1,12 @@
+from typing import List
+
 import numpy as np
 from photutils.morphology import gini as giniPhotutils
-from photutils import EllipticalAperture, EllipticalAnnulus, CircularAperture
-from typing import List
+from photutils import EllipticalAperture, EllipticalAnnulus, CircularAperture, CircularAnnulus
 from scipy.optimize import brentq
+import scipy.ndimage as ndi
 
-__all__ = ["gini", "m20", "concentration", "clumpiness", "calcPetrosianRadius"]
+__all__ = ["gini", "m20", "concentration", "smoothness", "calcPetrosianRadius"]
 
 
 def _getCircularFraction(image, centroid, radius, fraction):
@@ -159,5 +161,42 @@ def m20(image, pixelmap):
     pass
 
 
-def clumpiness():
-    pass    
+def smoothness(image, mask, centroid, Pr):
+
+    pr = 33.21485364762297
+
+    r_in = 0.25 * pr
+    r_out = 1.5 * pr
+
+    imageApeture = CircularAnnulus(centroid, r_in, r_out)
+
+    boxcarSize = int(pr * .25)
+    imageSmooth = ndi.uniform_filter(image, size=boxcarSize)
+
+    imageDiff = image - imageSmooth
+    imageDiff[imageDiff < 0.] = 0.
+
+    imageFlux = imageApeture.do_photometry(image, method="exact")[0][0]
+    diffFlux = imageApeture.do_photometry(imageDiff, method="exact")[0][0]
+
+    Bs = _skySmoothness(image, mask, pr)
+
+    top = diffFlux - imageApeture.area*Bs
+    bottom = imageFlux
+
+    print(f"Bs:{Bs}")
+    return top / bottom
+
+
+def _skySmoothness(image, mask, Pr):
+
+    maskCopy = mask.copy()
+    bkg = image * ~np.array(maskCopy, dtype=np.bool)
+
+    boxcarSize = int(Pr * .25)
+    bkgSmooth = ndi.uniform_filter(bkg, size=boxcarSize)
+
+    bkgDiff = bkg - bkgSmooth
+    bkgDiff[bkgDiff < 0] = 0.0
+
+    return np.sum(bkgDiff) / float(bkg.size)
