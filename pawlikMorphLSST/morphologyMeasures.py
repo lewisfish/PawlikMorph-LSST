@@ -127,7 +127,7 @@ def concentration(r20, r80):
     return C
 
 
-def gini(image, flux):
+def gini(image, mask):
     ''' Function calculates the Gini index of a Galaxy.
 
     Parameters
@@ -151,7 +151,7 @@ def gini(image, flux):
 
     # Only calculate the Gini index on pixels that belong to the galaxy where
     # the flux is greater than the elliptical Petrosian radius.
-    img = image[np.abs(image) >= flux]
+    img = image[mask > 0]
     G = giniPhotutils(img)
 
     return G
@@ -161,42 +161,61 @@ def m20(image, pixelmap):
     pass
 
 
-def smoothness(image, mask, centroid, Pr):
+def smoothness(image, mask, centroid, Rmax, r20, sky):
 
-    pr = 33.21485364762297
-
-    r_in = 0.25 * pr
-    r_out = 1.5 * pr
+    r_in = r20
+    r_out = Rmax
 
     imageApeture = CircularAnnulus(centroid, r_in, r_out)
 
-    boxcarSize = int(pr * .25)
-    imageSmooth = ndi.uniform_filter(image, size=boxcarSize)
+    imageSmooth = ndi.uniform_filter(image, size=int(r20))
 
     imageDiff = image - imageSmooth
     imageDiff[imageDiff < 0.] = 0.
 
     imageFlux = imageApeture.do_photometry(image, method="exact")[0][0]
     diffFlux = imageApeture.do_photometry(imageDiff, method="exact")[0][0]
+    bgr = getBackground(image, mask, sky)
+    # backgroundSmooth = 
 
-    Bs = _skySmoothness(image, mask, pr)
+    result = (diffFlux - backgroundSmooth) / imageFlux
 
-    top = diffFlux - imageApeture.area*Bs
-    bottom = imageFlux
-
-    print(f"Bs:{Bs}")
-    return top / bottom
+    return result
 
 
-def _skySmoothness(image, mask, Pr):
+def getBackground(image, mask, sky):
 
-    maskCopy = mask.copy()
-    bkg = image * ~np.array(maskCopy, dtype=np.bool)
+    # start at 32 then half if not found
+    # check box does not overlap object
+    # slide right/up 2 pixels at a time
 
-    boxcarSize = int(Pr * .25)
-    bkgSmooth = ndi.uniform_filter(bkg, size=boxcarSize)
+    maskCopy = ~np.array(mask, dtype=np.bool)
+    imageCopy = image * maskCopy
+    imageCopy[imageCopy == 0.] = -99
 
-    bkgDiff = bkg - bkgSmooth
-    bkgDiff[bkgDiff < 0] = 0.0
+    boxSize = 32
+    posX, posY = 0, 0
 
-    return np.sum(bkgDiff) / float(bkg.size)
+    bgr = -99.
+
+    while True:
+        skyPixels = imageCopy[posY:posY+boxSize, posX:posX+boxSize]
+        boxMean = np.sum(skyPixels) / (boxSize**2)
+
+        if np.abs(sky) > np.abs(boxMean) and not np.any(skyPixels) == -99.:
+            bgr = boxMean
+            break
+        else:
+            posX += 2
+            if posX >= image.shape[1] - boxSize:
+                posX = 0
+                posY += 2
+            if posY >= image.shape[0] - boxSize:
+                if boxSize > 8:
+                    posY = 0
+                    posX = 0
+                    boxSize = int(boxSize / 2)
+                else:
+                    bgr = -99.
+                    break
+    return bgr
