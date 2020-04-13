@@ -23,7 +23,7 @@ class _ImageError(_Error):
         raise AttributeError
 
 
-def calcRmax(mask):
+def calcRmax(image, mask):
     '''Function to calculate the maximum extent of a binary pixel map
 
     Parameters
@@ -40,11 +40,10 @@ def calcRmax(mask):
 
     '''
 
-    imgsize = mask.shape[0]
     objectpix = np.nonzero(mask == 1)
-    cenpix = np.array([int(imgsize/2) + 1, int(imgsize/2) + 1])
+    cenpix = np.array(np.unravel_index(image.argmax(), image.shape))
 
-    distarray = distarr(imgsize, imgsize, cenpix)
+    distarray = distarr(image.shape[0], image.shape[1], cenpix)
     objectdist = distarray[objectpix]
     rmax = np.max(objectdist)
 

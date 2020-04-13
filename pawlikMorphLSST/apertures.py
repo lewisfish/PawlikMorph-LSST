@@ -140,14 +140,14 @@ def distarr(npixx: int, npixy: int, cenpix: np.ndarray) -> np.ndarray:
 
     '''
 
-    x1 = np.arange(npixx) - cenpix[0]
-    x2 = np.ones_like(x1)
-
     y1 = np.arange(npixy) - cenpix[1]
     y2 = np.ones_like(y1)
 
-    pixx = np.transpose(np.outer(x1, y2))
-    pixy = np.transpose(np.outer(x2, y1))
+    x1 = np.arange(npixx) - cenpix[0]
+    x2 = np.ones_like(x1)
+
+    pixy = np.transpose(np.outer(y1, x2))
+    pixx = np.transpose(np.outer(y2, x1))
 
     dist = np.sqrt(pixx**2 + pixy**2)
 
