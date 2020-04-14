@@ -396,7 +396,7 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
         newResult.C = concentration(newResult.r20, newResult.r80)
         newResult.gini = gini(img, mask)
         newResult.S = smoothness(img, mask, newResult.apix, newResult.rmax, newResult.r20, newResult.sky)
-        newResult.m20 = casgm.m20(img, mask)
+        newResult.m20 = m20(img, mask)
         # pr, meanFluxatPr = calcPetrosianRadius(img, newResult.apix, newResult.fwhms, newResult.theta)
 
     f = time.time()
