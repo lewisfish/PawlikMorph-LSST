@@ -1,15 +1,22 @@
-from typing import List
+'''Module contains routines to calculate CAS parameters, as well as Gini, M20,
+   R20, R80, and Petrosian radii.
+'''
+
+from typing import List, Tuple
 
 import numpy as np
-from photutils.morphology import gini as giniPhotutils
 from photutils import EllipticalAperture, EllipticalAnnulus, CircularAperture, CircularAnnulus
-from scipy.optimize import brentq
+from photutils.morphology import gini as giniPhotutils
 import scipy.ndimage as ndi
+from scipy.optimize import brentq
+from skimage.measure import moments_central, moments
 
-__all__ = ["gini", "m20", "concentration", "smoothness", "calcPetrosianRadius"]
+__all__ = ["gini", "m20", "concentration", "smoothness", "calcPetrosianRadius",
+           "calcR20_R80"]
 
 
-def _getCircularFraction(image, centroid, radius, fraction):
+def _getCircularFraction(image: np.ndarray, centroid: List[float],
+                         radius: float, fraction: float) -> float:
 
     apeture_total = CircularAperture(centroid, radius)
     totalSum = apeture_total.do_photometry(image, method="exact")[0][0]
@@ -18,6 +25,7 @@ def _getCircularFraction(image, centroid, radius, fraction):
     radiusCurrent = radius - deltaRadius
     radiusMin = 0
     radiusMax = 0
+
     while True:
         apCur = CircularAperture(centroid, radiusCurrent,)
         currentSum = apCur.do_photometry(image, method="exact")[0][0]
@@ -34,14 +42,18 @@ def _getCircularFraction(image, centroid, radius, fraction):
     return r
 
 
-def _fractionTotalFLuxCircle(radius, image, centroid, totalSum, fraction):
+def _fractionTotalFLuxCircle(radius: float, image: np.ndarray,
+                             centroid: List[float], totalSum: float,
+                             fraction: float) -> float:
+
     apetureCur = CircularAperture(centroid, radius)
     currentSum = apetureCur.do_photometry(image, method="exact")[0][0]
 
     return (currentSum/totalSum) - fraction
 
 
-def calcR20_R80(image, centroid, radius):
+def calcR20_R80(image: np.ndarray, centroid: List[float],
+                radius: float) -> Tuple[float, float]:
 
     r20 = _getCircularFraction(image, centroid, radius, 0.2)
     r80 = _getCircularFraction(image, centroid, radius, 0.8)
@@ -49,7 +61,9 @@ def calcR20_R80(image, centroid, radius):
     return r20, r80
 
 
-def _fractionTotalFLuxEllipse(a, image, centroid, ellip, theta):
+def _fractionTotalFLuxEllipse(a: float, image: np.ndarray,
+                              centroid: List[float], ellip: float,
+                              theta: float) -> float:
 
     b = a / ellip
     a_in = a - 0.5
@@ -68,7 +82,9 @@ def _fractionTotalFLuxEllipse(a, image, centroid, ellip, theta):
     return ratio - 0.2
 
 
-def calcPetrosianRadius(image, centroid, fwhms, theta):
+def calcPetrosianRadius(image: np.ndarray, centroid: List[float],
+                        fwhms: List[float],
+                        theta: float) -> Tuple[float, float]:
 
     ellip = max(fwhms)/min(fwhms)
 
@@ -91,7 +107,8 @@ def calcPetrosianRadius(image, centroid, fwhms, theta):
             break
         a += da
 
-    rp = brentq(_fractionTotalFLuxEllipse, a_min, a_max, args=(image, centroid, ellip, theta))
+    rp = brentq(_fractionTotalFLuxEllipse, a_min, a_max,
+                args=(image, centroid, ellip, theta))
 
     a_in = rp - 0.5
     a_out = rp + 0.5
@@ -103,7 +120,7 @@ def calcPetrosianRadius(image, centroid, fwhms, theta):
     return rp, meanflux
 
 
-def concentration(r20, r80):
+def concentration(r20: float, r80: float) -> float:
     '''Function calculates the concentration index from the growth curve radii
        R20 and R80.
 
@@ -127,7 +144,7 @@ def concentration(r20, r80):
     return C
 
 
-def gini(image, mask):
+def gini(image: np.ndarray, mask: np.ndarray) -> float:
     ''' Function calculates the Gini index of a Galaxy.
 
     Parameters
@@ -157,11 +174,56 @@ def gini(image, mask):
     return G
 
 
-def m20(image, pixelmap):
-    pass
+def m20(image: np.ndarray, mask: np.ndarray) -> float:
+    '''Calculate the M20 statistic.
+
+    Parameters
+    ----------
+
+    image : float, 2d np.ndarray
+        Image of galaxy
+
+    mask : float [0. - 1.], 2d np.ndarray
+        Mask which contains the pixels belonging to the galaxy of interest.
+
+    Returns
+    -------
+
+    m20 : float
+        M20 statistic
+
+    '''
+
+    # use the same image as used in Gini calculation.
+    img = np.where(mask > 0, image, 0.)
+
+    # Calculate centroid from moments
+    M = moments(img, order=1)
+    centroid = (M[1, 0] / M[0, 0],  M[0, 1] / M[0, 0])
+
+    # Calculate 2nd order central moment
+    Mc = moments_central(img, center=centroid, order=2)
+    secondMomentTotal = Mc[0, 2] + Mc[2, 0]
+
+    # sort pixels, then take top 20% of brightest pixels
+    sortedPixels = np.sort(img.ravel())
+    fluxFraction = np.cumsum(sortedPixels) / np.sum(sortedPixels)
+    sortedPixels20 = sortedPixels[fluxFraction > 0.8]
+    thresh = sortedPixels20[0]
+
+    # Select pixels from the image that are the top 20% brightest
+    # then compute M20
+    img20 = np.where(img >= thresh, img, 0.0)
+    Mc20 = moments_central(img20, center=centroid, order=2)
+    secondMoment20 = Mc20[0, 2] + Mc20[2, 0]
+
+    m20 = np.log10(secondMoment20 / secondMomentTotal)
+
+    return m20
 
 
-def smoothness(image, mask, centroid, Rmax, r20, sky):
+def smoothness(image: np.ndarray, mask: np.ndarray, centroid: List[float],
+               Rmax: float, r20: float, sky: float) -> float:
     '''Calculate the smoothness of clumpiness of the galaxy of interest.
 
     Parameters
@@ -210,13 +272,14 @@ def smoothness(image, mask, centroid, Rmax, r20, sky):
     # calculate S, accounting for the background smoothness.
     imageFlux = imageApeture.do_photometry(image, method="exact")[0][0]
     diffFlux = imageApeture.do_photometry(imageDiff, method="exact")[0][0]
-    backgroundSmooth = getBackground(image, mask, sky, r20)
-    result = (diffFlux - imageApeture.area*backgroundSmooth) / imageFlux
+    backgroundSmooth = _getBackgroundSmoothness(image, mask, sky, r20)
+    S = (diffFlux - imageApeture.area*backgroundSmooth) / imageFlux
 
-    return result
+    return S
 
 
-def getBackground(image, mask, sky, boxcarSize):
+def _getBackgroundSmoothness(image: np.ndarray, mask: np.ndarray, sky: float,
+                             boxcarSize: float) -> float:
     '''Calculate the background smoothness.
 
     Parameters
@@ -231,7 +294,7 @@ def getBackground(image, mask, sky, boxcarSize):
     sky : float
         Value of the sky background
 
-    boxcarSize: float or int
+    boxcarSize: float
         Size of the box to use in median filter
 
     Returns
@@ -252,7 +315,8 @@ def getBackground(image, mask, sky, boxcarSize):
 
     bgr = -99.
 
-    # move box of size boxSize over image till we find an area that is only background.
+    # move box of size boxSize over image till we find an area that is
+    # only background.
     # start at boxSize=32 then half if not found
     # check box does not overlap galaxy object
     # slide right/up 2 pixels at a time if not found
