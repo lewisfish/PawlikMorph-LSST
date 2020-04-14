@@ -52,15 +52,6 @@ def _fractionTotalFLuxCircle(radius: float, image: np.ndarray,
     return (currentSum/totalSum) - fraction
 
 
-def calcR20_R80(image: np.ndarray, centroid: List[float],
-                radius: float) -> Tuple[float, float]:
-
-    r20 = _getCircularFraction(image, centroid, radius, 0.2)
-    r80 = _getCircularFraction(image, centroid, radius, 0.8)
-
-    return r20, r80
-
-
 def _fractionTotalFLuxEllipse(a: float, image: np.ndarray,
                               centroid: List[float], ellip: float,
                               theta: float) -> float:
@@ -120,9 +111,44 @@ def calcPetrosianRadius(image: np.ndarray, centroid: List[float],
     return rp, meanflux
 
 
+def calcR20_R80(image: np.ndarray, centroid: List[float],
+                radius: float) -> Tuple[float, float]:
+    '''Calculate the radii where 20%, and 80% of light from the galaxy
+       falls within.
+
+
+    Parameters
+    ----------
+
+    image : float, 2d np.ndarray
+        Image of galaxy
+
+    centroid : List[float]
+        Location of the brightest pixel
+
+    radius : float
+        Radius in which to measure galaxy light out to.
+
+    Returns
+    -------
+
+    r20, r80 : Tuple[float, float]
+        The radii where 20% and 80% light falls within
+
+    '''
+
+    r20 = _getCircularFraction(image, centroid, radius, 0.2)
+    r80 = _getCircularFraction(image, centroid, radius, 0.8)
+
+    return r20, r80
+
+
 def concentration(r20: float, r80: float) -> float:
     '''Function calculates the concentration index from the growth curve radii
        R20 and R80.
+
+    see Lotz et al. 2004 https://doi.org/10.1086/421849
+
 
     Parameters
     ----------
@@ -146,6 +172,15 @@ def concentration(r20: float, r80: float) -> float:
 
 def gini(image: np.ndarray, mask: np.ndarray) -> float:
     ''' Function calculates the Gini index of a Galaxy.
+
+        g = 1 / (2 Xbar n(n-1)) * sum (2i - n - 1) |Xi|
+
+        Where xbar is the mean over all intensities
+        n is the total number of pixels
+        Xi are the pixel intensities in increasing order
+
+        see Lotz et al. 2004 https://doi.org/10.1086/421849
+
 
     Parameters
     ----------
@@ -176,6 +211,11 @@ def gini(image: np.ndarray, mask: np.ndarray) -> float:
 
 def m20(image: np.ndarray, mask: np.ndarray) -> float:
     '''Calculate the M20 statistic.
+
+       M20 = log10((sum M_i) / M_tot) while sum f_i < 0.2 f_tot
+       M_tot = sum M_i = sum f_i[(x - x_c)^2 + (y - y_c)^2]
+
+    see Lotz et al. 2004 https://doi.org/10.1086/421849
 
     Parameters
     ----------
@@ -208,8 +248,7 @@ def m20(image: np.ndarray, mask: np.ndarray) -> float:
     # sort pixels, then take top 20% of brightest pixels
     sortedPixels = np.sort(img.ravel())
     fluxFraction = np.cumsum(sortedPixels) / np.sum(sortedPixels)
-    sortedPixels20 = sortedPixels[fluxFraction > 0.8]
-    thresh = sortedPixels20[0]
+    thresh = sortedPixels[fluxFraction > 0.8][0]
 
     # Select pixels from the image that are the top 20% brightest
     # then compute M20
@@ -225,6 +264,15 @@ def m20(image: np.ndarray, mask: np.ndarray) -> float:
 def smoothness(image: np.ndarray, mask: np.ndarray, centroid: List[float],
                Rmax: float, r20: float, sky: float) -> float:
     '''Calculate the smoothness of clumpiness of the galaxy of interest.
+
+        S = ((sum |I - Is| - Bs) / (sum |I|))
+
+        Where I is the image
+        Is is the smoothed image
+        Bs is the background smoothness
+
+        see Lotz et al. 2004 https://doi.org/10.1086/421849
+
 
     Parameters
     ----------
