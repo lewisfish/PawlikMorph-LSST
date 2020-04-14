@@ -202,8 +202,8 @@ def m20(image: np.ndarray, mask: np.ndarray) -> float:
     centroid = (M[1, 0] / M[0, 0],  M[0, 1] / M[0, 0])
 
     # Calculate 2nd order central moment
-    Mc = moments_central(img, center=centroid, order=2)
-    secondMomentTotal = Mc[0, 2] + Mc[2, 0]
+    Mcentral = moments_central(img, center=centroid, order=2)
+    secondMomentTotal = Mcentral[2, 0] + Mcentral[0, 2]
 
     # sort pixels, then take top 20% of brightest pixels
     sortedPixels = np.sort(img.ravel())
@@ -214,8 +214,8 @@ def m20(image: np.ndarray, mask: np.ndarray) -> float:
     # Select pixels from the image that are the top 20% brightest
     # then compute M20
     img20 = np.where(img >= thresh, img, 0.0)
-    Mc20 = moments_central(img20, center=centroid, order=2)
-    secondMoment20 = Mc20[0, 2] + Mc20[2, 0]
+    Mcentral20 = moments_central(img20, center=centroid, order=2)
+    secondMoment20 = Mcentral20[0, 2] + Mcentral20[2, 0]
 
     m20 = np.log10(secondMoment20 / secondMomentTotal)
 

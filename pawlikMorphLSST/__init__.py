@@ -4,4 +4,4 @@
 
 __all__ = ["gaussfitter", "pixmap", "apertures", "asymmetry",
            "imageutils", "objectMasker", "sersic", "result", "main",
-           "morphologyMeasures", "helpers", "skyBackground"]
+           "casgm", "helpers", "skyBackground"]
