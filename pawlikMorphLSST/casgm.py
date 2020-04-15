@@ -11,8 +11,7 @@ import scipy.ndimage as ndi
 from scipy.optimize import brentq
 from skimage.measure import moments_central, moments
 
-__all__ = ["gini", "m20", "concentration", "smoothness", "calcPetrosianRadius",
-           "calcR20_R80"]
+__all__ = ["gini", "m20", "concentration", "smoothness", "calcR20_R80"]
 
 
 def _getCircularFraction(image: np.ndarray, centroid: List[float],
