@@ -11,8 +11,8 @@ __all__ = ["minapix", "calcA"]
 
 def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
             starMask=None) -> List[int]:
-    """Function that finds the minimum asymmetry central pixel within the
-       objects pixels of a given image.
+    """Find the pixel that minimises the asymmetry parameter, A
+
        Selects a range of candidate centroids within the brightest region that
        compromises of 20% of the total flux within object.
        Then measures the asymmetry of the image under rotation around that
@@ -95,8 +95,9 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
 def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
           centroid: List[int], angle: float, starMask=None,
           noisecorrect=False) -> List[float]:
-    """Function to calculate A, the asymmetry parameter. Near direct
-       translation of IDL code.
+    """Function to calculate A, the asymmetry parameter.
+
+    Near direct translation of IDL code.
 
     Parameters
     ----------

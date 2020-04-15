@@ -270,7 +270,9 @@ def make_twotwo(ax, img, modelImage, listofStarstoPlot, result):
 
 
 def make_figure(result, folder, save=False, show=False):
-    '''Function plots results from image analysis. Plots two or four images.
+    '''Function plots results from image analysis.
+
+        Plots two or four images.
        Top row: original image  and object map with stars overplotted if any.
        bottom row: Sersic fit and residual with stars overplotted if any.
 

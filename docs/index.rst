@@ -3,22 +3,38 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to pawlikMorph-LSST's documentation!
+PawlikMorph-LSST's documentation!
 ============================================
 
-.. automodule:: pawlikMorphLSST.main
+PawlikMorph-LSST is a python package for calculating various non-parametric morphological measures of galaxies.
+The code in this package is based upon/translation of `pawlikMorph <https://github.com/SEDMORPH/PawlikMorph>`_ in IDL.
+
+.. automodule pawlikMorphLSST.main
     :members:
     :undoc-members:
 
+
+Getting Started
+===============
+
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+    :maxdepth: 1
 
+    install.rst
+    overview.rst
+    getting_started.rst
 
-
-Indices and tables
+User Documentation
 ==================
 
-* :ref:`genindex`
+.. toctree::
+    :maxdepth: 1
+
+    casgm.rst
+    diagnostic.rst
+
+
+Modules (API) 
+==================
+
 * :ref:`modindex`
-* :ref:`search`

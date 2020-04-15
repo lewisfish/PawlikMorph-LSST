@@ -23,11 +23,14 @@ class _ImageError(_Error):
         raise AttributeError
 
 
-def calcRmax(image, mask):
+def calcRmax(image: np.ndarray, mask: np.ndarray) -> float:
     '''Function to calculate the maximum extent of a binary pixel map
 
     Parameters
     ----------
+
+    image : float, 2d np.ndarray
+        Image of galaxy.
 
     mask : np.ndarray
         Binary pixel mask
@@ -52,8 +55,7 @@ def calcRmax(image, mask):
 
 def calcMaskedFraction(oldMask: np.ndarray, starMask: np.ndarray,
                        cenpix: List[float]) -> float:
-    '''Function that calculates the fraction of object pixels that are masked
-       due to presence of a star
+    '''Calculates the fraction of pixels that are masked.
 
     Parameters
     ----------
@@ -85,8 +87,7 @@ def calcMaskedFraction(oldMask: np.ndarray, starMask: np.ndarray,
 
 
 def checkPixelmapEdges(mask: np.ndarray) -> bool:
-    '''Function to check if the pixelmap hits the edge of the image,
-       and flags if it does
+    '''Flag image if galaxy pixels are on edge of image.
 
     Parameters
     -------
@@ -126,8 +127,10 @@ def checkPixelmapEdges(mask: np.ndarray) -> bool:
 
 def pixelmap(image: np.ndarray, threshold: float, filterSize: int,
              starMask=None) -> np.ndarray:
-    ''' Calculates an object binary mask using a mean filter and 8 connected
-        pixels and a given threshold.
+    ''' Calculates an object binary mask.
+
+        This is acheived using a mean filter, 8 connected
+        pixels, and a given threshold.
 
     Parameters
     ----------

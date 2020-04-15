@@ -40,8 +40,7 @@ def _inBbox(extent: List[float], point: List[float]) -> bool:
 
 
 def maskstarsSEG(image: np.ndarray) -> np.ndarray:
-    '''Function that cleans image of external sources. Uses segmentation map
-       to achieve this.
+    '''"Cleans" image of external sources.
 
     Parameters
     ----------
@@ -157,8 +156,7 @@ def _calculateRadius(y, A, sigma):
 
 def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
                  numSigmas=5., adaptive=True, sky_err=0.0) -> np.ndarray:
-    '''Function that uses the PSF to estimate stars radius and then masks them
-       from the image mask stars.
+    '''Use the PSF to estimate stars radius, then masks them out.
 
     Parameters
     ----------

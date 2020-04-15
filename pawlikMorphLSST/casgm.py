@@ -118,7 +118,7 @@ def _fractionTotalFLuxCircle(radius: float, image: np.ndarray,
 
 def calcR20_R80(image: np.ndarray, centroid: List[float],
                 radius: float) -> Tuple[float, float]:
-    r'''Calculation of :math: r_{20}, and :math: r_{80}
+    r'''Calculation of :math:`r_{20}`, and :math:`r_{80}`
 
 
     Parameters
@@ -178,9 +178,9 @@ def gini(image: np.ndarray, mask: np.ndarray) -> float:
 
     .. math:: g = \frac{1}{2 \bar{X} n(n-1)} \sum (2i - n - 1) \left|X_i\right|
 
-    Where :math: \bar{X} is the mean over all intensities
+    Where :math:`\bar{X}` is the mean over all intensities
     n is the total number of pixels
-    :math:X_i are the pixel intensities in increasing order
+    :math:`X_i` are the pixel intensities in increasing order
 
     see Lotz et al. 2004 https://doi.org/10.1086/421849
 
@@ -269,8 +269,8 @@ def smoothness(image: np.ndarray, mask: np.ndarray, centroid: List[float],
     .. math:: S = \frac{\sum \left|I - I_s\right| - B_s} {\sum \left|I\right|}
 
     Where I is the image
-    :math: I_s is the smoothed image
-    :math: B_s is the background smoothness
+    :math:`I_s` is the smoothed image
+    :math:`B_s` is the background smoothness
 
     see Lotz et al. 2004 https://doi.org/10.1086/421849
 

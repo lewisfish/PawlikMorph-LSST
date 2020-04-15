@@ -41,18 +41,25 @@ def makeaperpixmaps(npix: int, folderpath=None) -> None:
 
 @nb.njit
 def aperpixmap(npix: int, rad: float,  nsubpix: int, frac: float) -> np.ndarray:
-    '''Calculates the aperture binary mask through pixel sampling knowing
-       aperture radius and number of subpixels. Near direct translation of
-       IDL code.
+    '''Calculate aperture binary mask.
+
+    Calculates the aperture binary mask through pixel sampling knowing
+    the aperture radius and number of subpixels.
+
+   Near direct translation of IDL code.
 
     Parameters
     ----------
+
     npix : int
         Width of aperture image.
+
     rad : float
         Radius of the aperture.
+
     nsubpix : int
         Number of subpixels
+
     frac : float
         Fraction of something... Maybe due to Petrosian magnitude?
 
@@ -157,7 +164,8 @@ def distarr(npixx: int, npixy: int, cenpix: np.ndarray) -> np.ndarray:
 @nb.njit(nb.float64[:, :](nb.int64, nb.int64, nb.int64[:]))
 def subdistarr(npix: int, nsubpix: int, cenpix: List[int]) -> np.ndarray:
     '''Writes the aperture binary masks out after calculation.
-       Near direct translation of IDL code.
+
+    Near direct translation of IDL code.
 
     Parameters
     ----------

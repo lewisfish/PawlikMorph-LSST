@@ -105,8 +105,7 @@ def getFiles(imgSource, file=None, folder=None):
 
 
 def getLocation(file=None, folder=None):
-    '''Function to determine the outfolder, and current folder of file/set
-       of files provided via command line
+    '''Determines the output folder and current folder of files.
 
     Parameters
     ----------
