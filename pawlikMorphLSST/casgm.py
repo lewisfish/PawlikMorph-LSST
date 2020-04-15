@@ -76,7 +76,7 @@ def _getCircularFraction(image: np.ndarray, centroid: List[float],
 def _fractionTotalFLuxCircle(radius: float, image: np.ndarray,
                              centroid: List[float], totalSum: float,
                              fraction: float) -> float:
-    '''Helper function to help find the radius of a circle that encloses a
+    r'''Helper function to help find the radius of a circle that encloses a
        fraction of the total light in the galaxy of interest.
 
 
@@ -118,8 +118,7 @@ def _fractionTotalFLuxCircle(radius: float, image: np.ndarray,
 
 def calcR20_R80(image: np.ndarray, centroid: List[float],
                 radius: float) -> Tuple[float, float]:
-    '''Calculate the radii where 20%, and 80% of light from the galaxy
-       falls within.
+    r'''Calculation of :math: r_{20}, and :math: r_{80}
 
 
     Parameters
@@ -149,8 +148,7 @@ def calcR20_R80(image: np.ndarray, centroid: List[float],
 
 
 def concentration(r20: float, r80: float) -> float:
-    '''Function calculates the concentration index from the growth curve radii
-       R20 and R80.
+    r'''Calculation of the concentration of light in a galaxy.
 
     see Lotz et al. 2004 https://doi.org/10.1086/421849
 
@@ -176,16 +174,15 @@ def concentration(r20: float, r80: float) -> float:
 
 
 def gini(image: np.ndarray, mask: np.ndarray) -> float:
-    ''' Function calculates the Gini index of a Galaxy.
+    r'''Calculation of the Gini index of a Galaxy.
 
-        g = 1 / (2 Xbar n(n-1)) * sum (2i - n - 1) |Xi|
+    .. math:: g = \frac{1}{2 \bar{X} n(n-1)} \sum (2i - n - 1) \left|X_i\right|
 
-        Where xbar is the mean over all intensities
-        n is the total number of pixels
-        Xi are the pixel intensities in increasing order
+    Where :math: \bar{X} is the mean over all intensities
+    n is the total number of pixels
+    :math:X_i are the pixel intensities in increasing order
 
-        see Lotz et al. 2004 https://doi.org/10.1086/421849
-
+    see Lotz et al. 2004 https://doi.org/10.1086/421849
 
     Parameters
     ----------
@@ -197,13 +194,11 @@ def gini(image: np.ndarray, mask: np.ndarray) -> float:
         The elliptical Petrosian flux, at which is defined as the cutoff for
         calculating the Gini index.
 
-
     Returns
     -------
 
     G : float
         The Gini index.
-
     '''
 
     # Only calculate the Gini index on pixels that belong to the galaxy where
@@ -215,10 +210,11 @@ def gini(image: np.ndarray, mask: np.ndarray) -> float:
 
 
 def m20(image: np.ndarray, mask: np.ndarray) -> float:
-    '''Calculate the M20 statistic.
+    r'''Calculate the M20 statistic.
 
-       M20 = log10((sum M_i) / M_tot) while sum f_i < 0.2 f_tot
-       M_tot = sum M_i = sum f_i[(x - x_c)^2 + (y - y_c)^2]
+    .. math:: M_{20} = log_{10} \left(\frac{\sum M_i}  {M_{tot}}\right)
+    .. math:: While \sum f_i < 0.2 f_{tot}
+    .. math:: M_{tot} = \sum M_i = \sum f_i [(x - x_c)^2 + (y - y_c)^2]
 
     see Lotz et al. 2004 https://doi.org/10.1086/421849
 
@@ -268,15 +264,15 @@ def m20(image: np.ndarray, mask: np.ndarray) -> float:
 
 def smoothness(image: np.ndarray, mask: np.ndarray, centroid: List[float],
                Rmax: float, r20: float, sky: float) -> float:
-    '''Calculate the smoothness of clumpiness of the galaxy of interest.
+    r'''Calculate the smoothness or clumpiness of the galaxy of interest.
 
-        S = ((sum |I - Is| - Bs) / (sum |I|))
+    .. math:: S = \frac{\sum \left|I - I_s\right| - B_s} {\sum \left|I\right|}
 
-        Where I is the image
-        Is is the smoothed image
-        Bs is the background smoothness
+    Where I is the image
+    :math: I_s is the smoothed image
+    :math: B_s is the background smoothness
 
-        see Lotz et al. 2004 https://doi.org/10.1086/421849
+    see Lotz et al. 2004 https://doi.org/10.1086/421849
 
 
     Parameters
