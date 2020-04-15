@@ -9,10 +9,6 @@ PawlikMorph-LSST's documentation!
 PawlikMorph-LSST is a python package for calculating various non-parametric morphological measures of galaxies.
 The code in this package is based upon/translation of `pawlikMorph <https://github.com/SEDMORPH/PawlikMorph>`_ in IDL.
 
-.. automodule pawlikMorphLSST.main
-    :members:
-    :undoc-members:
-
 
 Getting Started
 ===============

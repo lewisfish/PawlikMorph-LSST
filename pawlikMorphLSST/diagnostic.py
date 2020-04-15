@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Type
 import warnings
 
 import numpy as np
@@ -14,6 +14,8 @@ from astropy.utils.exceptions import AstropyWarning
 from astropy.visualization import LogStretch
 from matplotlib.offsetbox import AnchoredText
 from scipy.ndimage import gaussian_filter
+
+from .result import Result
 
 __all__ = ["make_figure"]
 
@@ -269,17 +271,17 @@ def make_twotwo(ax, img, modelImage, listofStarstoPlot, result):
     ax.set_title("Sersic fit residual")
 
 
-def make_figure(result, folder, save=False, show=False):
+def make_figure(result: Type[Result], folder: bool, save=False, show=False) -> None:
     '''Function plots results from image analysis.
 
-        Plots two or four images.
-       Top row: original image  and object map with stars overplotted if any.
-       bottom row: Sersic fit and residual with stars overplotted if any.
+    Plots two or four images.
+    Top row: original image  and object map with stars overplotted if any.
+    bottom row: Sersic fit and residual with stars overplotted if any.
 
     Parameters
     ----------
 
-    result : Results class
+    result : Type[Result]
         Data class container of calculated results.
 
     folder : bool
@@ -294,6 +296,7 @@ def make_figure(result, folder, save=False, show=False):
     Returns
     -------
 
+    None
 
     '''
 
