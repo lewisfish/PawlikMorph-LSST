@@ -371,7 +371,7 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
     newResult.apix = minapix(img, mask, aperturepixmap, starMask)
     angle = 180.
 
-    if asymmetry or allAsymmetry:
+    if asymmetry or allAsymmetry or CAS:
         newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
         if catalogue:
             newResult.maskedPixelFraction = calcMaskedFraction(tmpmask, starMask, newResult.apix)

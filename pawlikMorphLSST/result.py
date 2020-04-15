@@ -51,9 +51,11 @@ class Result:
         '''Write out result as a row to a csv file'''
 
         objectfile.writerow([f"{self.file}", f"{self.apix}", f"{self.rmax}",
-                             f"{self.sky}", f"{self.sky_err}", f"{self.A[0]}",
-                             f"{self.A[1]}", f"{self.As[0]}", f"{self.As90[0]}",
-                             f"{self.fwhms}", f"{self.theta}",
+                             f"{self.r20}", f"{self.r80}",
+                             f"{self.sky}", f"{self.sky_err}", f"{self.C}",
+                             f"{self.A[0]}", f"{self.A[1]}", f"{self.S}",
+                             f"{self.As[0]}", f"{self.As90[0]}", f"{self.gini}",
+                             f"{self.m20}", f"{self.fwhms}", f"{self.theta}",
                              f"{self.sersic_amplitude}", f"{self.sersic_r_eff}",
                              f"{self.sersic_n}", f"{self.sersic_x_0}",
                              f"{self.sersic_y_0}", f"{self.sersic_ellip}",

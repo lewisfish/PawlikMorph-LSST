@@ -163,6 +163,11 @@ def make_onetwo(ax, mask, result):
     textbox = AnchoredText(text, frameon=True, loc=3, pad=0.5)
     ax.add_artist(textbox)
 
+    text = f"C={result.C:.3f}\nS={result.S:.3f}\n" rf"Gini={result.gini:.3f}"
+    text += "\n" fr"m20={result.m20:.3f}"
+    textbox = AnchoredText(text, frameon=True, loc=4, pad=0.5)
+    ax.add_artist(textbox)
+
     circle = mpatches.Circle(((mask.shape[0]/2)+1, (mask.shape[1]/2)+1),
                              result.rmax, fill=False, label="Rmax", color="white")
     ax.add_patch(circle)
