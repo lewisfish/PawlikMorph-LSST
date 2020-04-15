@@ -1,5 +1,5 @@
 '''Module contains routines to calculate CAS parameters, as well as Gini, M20,
-   R20, R80, and Petrosian radii.
+   R20, R80.
 '''
 
 from typing import List, Tuple
