@@ -21,7 +21,9 @@ def _getCircularFraction(image: np.ndarray, centroid: List[float],
     apeture_total = CircularAperture(centroid, radius)
     totalSum = apeture_total.do_photometry(image, method="exact")[0][0]
 
-    deltaRadius = (radius / 100.) * 2.
+    npoints = float(100)
+
+    deltaRadius = (radius / npoints) * 2.
     radiusCurrent = radius - deltaRadius
     radiusMin = 0
     radiusMax = 0
@@ -50,65 +52,6 @@ def _fractionTotalFLuxCircle(radius: float, image: np.ndarray,
     currentSum = apetureCur.do_photometry(image, method="exact")[0][0]
 
     return (currentSum/totalSum) - fraction
-
-
-def _fractionTotalFLuxEllipse(a: float, image: np.ndarray,
-                              centroid: List[float], ellip: float,
-                              theta: float) -> float:
-
-    b = a / ellip
-    a_in = a - 0.5
-    a_out = a + 0.5
-
-    b_out = a_out / ellip
-
-    ellip_annulus = EllipticalAnnulus(centroid, a_in, a_out, b_out, theta)
-    ellip_aperture = EllipticalAperture(centroid, a, b, theta)
-
-    ellip_annulus_mean_flux = np.abs(ellip_annulus.do_photometry(image, method="exact")[0][0]) / ellip_annulus.area
-    ellip_aperture_mean_flux = np.abs(ellip_aperture.do_photometry(image, method="exact")[0][0]) / ellip_aperture.area
-
-    ratio = ellip_annulus_mean_flux / ellip_aperture_mean_flux
-
-    return ratio - 0.2
-
-
-def calcPetrosianRadius(image: np.ndarray, centroid: List[float],
-                        fwhms: List[float],
-                        theta: float) -> Tuple[float, float]:
-
-    ellip = max(fwhms)/min(fwhms)
-
-    npoints = 100
-    a_inner = 1.
-    a_outer = np.sqrt(image.shape[0]**2 + image.shape[1]**2)
-
-    da = a_outer - a_inner / float(npoints)
-    a_min, a_max = None, None
-    a = a_inner
-
-    while True:
-        curval = _fractionTotalFLuxEllipse(a, image, centroid, ellip, theta)
-        if curval == 0:
-            return a
-        elif curval > 0:
-            a_min = a
-        elif curval < 0:
-            a_max = a
-            break
-        a += da
-
-    rp = brentq(_fractionTotalFLuxEllipse, a_min, a_max,
-                args=(image, centroid, ellip, theta))
-
-    a_in = rp - 0.5
-    a_out = rp + 0.5
-    b_out = a_out / ellip
-
-    ellip_annulus = EllipticalAnnulus(centroid, a_in, a_out, b_out, theta)
-    meanflux = np.abs(ellip_annulus.do_photometry(image, method="exact")[0][0]) / ellip_annulus.area
-
-    return rp, meanflux
 
 
 def calcR20_R80(image: np.ndarray, centroid: List[float],
