@@ -103,8 +103,9 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
     outfile = outfolder / paramsaveFile
     csvfile = open(outfile, mode="w")
     paramwriter = csv.writer(csvfile, delimiter=",")
-    paramwriter.writerow(["file", "apix", "r_max", "sky", "sky_err", "A",
-                          "Abgr", "As", "As90", "fwhms", "theta",
+    paramwriter.writerow(["file", "apix", "r_max", "r20", "r80", "sky",
+                          "sky_err", "C", "A", "Abgr", "S", "As", "As90",
+                          "Gini index", "M20", "fwhms", "theta",
                           "sersic_amplitude", "sersic_r_eff", "sersic_n",
                           "sersic_x_0", "sersic_y_0", "sersic_ellip",
                           "sersic_theta", "time", "star_flag",
