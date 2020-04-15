@@ -17,17 +17,47 @@ __all__ = ["gini", "m20", "concentration", "smoothness", "calcPetrosianRadius",
 
 def _getCircularFraction(image: np.ndarray, centroid: List[float],
                          radius: float, fraction: float) -> float:
+    '''Function determines the radius of a circle that encloses a fraction of
+       the total light.
+
+    Parameters
+    ----------
+
+    image : float, 2d np.ndarray
+        Image of galaxy
+
+    centroid : List[float]
+        Location of the brightest pixel
+
+    radius : float
+        Radius in which to measure galaxy light out to. This is usually Rmax.
+
+    fraction : float
+        The fraction of the total galaxy light for the circle to enclose.
+
+
+    Returns
+    -------
+
+    radiusOut : float
+        The radius of the circle that encloses fraction of light
+
+    '''
 
     apeture_total = CircularAperture(centroid, radius)
     totalSum = apeture_total.do_photometry(image, method="exact")[0][0]
 
+    # number of points for grid
     npoints = float(100)
 
+    # grid spacing
     deltaRadius = (radius / npoints) * 2.
     radiusCurrent = radius - deltaRadius
     radiusMin = 0
     radiusMax = 0
 
+    # loop until bracketing values are found for the root at which is
+    # our desired radius.
     while True:
         apCur = CircularAperture(centroid, radiusCurrent,)
         currentSum = apCur.do_photometry(image, method="exact")[0][0]
@@ -38,20 +68,53 @@ def _getCircularFraction(image: np.ndarray, centroid: List[float],
             break
         radiusCurrent -= deltaRadius
 
-    r = brentq(_fractionTotalFLuxCircle, radiusMin, radiusMax, args=(image, centroid,
-               totalSum, fraction))
+    radiusOut = brentq(_fractionTotalFLuxCircle, radiusMin, radiusMax,
+                       args=(image, centroid, totalSum, fraction))
 
-    return r
+    return radiusOut
 
 
 def _fractionTotalFLuxCircle(radius: float, image: np.ndarray,
                              centroid: List[float], totalSum: float,
                              fraction: float) -> float:
+    '''Helper function to help find the radius of a circle that encloses a
+       fraction of the total light in the galaxy of interest.
+
+
+    Parameters
+    ----------
+
+    radius : float
+        Radius in which to measure galaxy light out to. This is usually Rmax.
+
+    image : float, 2d np.ndarray
+        Image of galaxy
+
+    centroid : List[float]
+        Location of the brightest pixel
+
+    totalSum : float
+        The total amount of light in the galaxy.
+
+    fraction : float
+        The fraction of the total galaxy light for the circle to enclose.
+
+
+    Returns
+    -------
+
+    root : float
+        The fraction of light at the current radius minus the fraction,
+        so that a root at 0 can be found.
+
+    '''
 
     apetureCur = CircularAperture(centroid, radius)
     currentSum = apetureCur.do_photometry(image, method="exact")[0][0]
 
-    return (currentSum/totalSum) - fraction
+    root = (currentSum/totalSum) - fraction
+
+    return root
 
 
 def calcR20_R80(image: np.ndarray, centroid: List[float],
