@@ -1,4 +1,6 @@
 # PawlikMorph-LSST
+[![Documentation Status](https://readthedocs.org/projects/pawlikmorph-lsst/badge/?version=latest)](https://pawlikmorph-lsst.readthedocs.io/en/latest/?badge=latest)
+
 Translation and optimisation of SEDMORPH's [PawlikMorph](https://github.com/SEDMORPH/PawlikMorph) IDL code for analysing images of galaxies from SDSS data release 7
 
 Replicates the ability to prepare images, generate object binary masks and calculate the A, As, As90 asymmetry parameters, and Sersic parameters.
