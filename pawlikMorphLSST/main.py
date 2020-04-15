@@ -11,7 +11,6 @@ from parsl.app.app import python_app
 from parsl.configs.local_threads import config
 
 from .apertures import aperpixmap
-from .apertures import distarr
 from .asymmetry import calcA
 from .asymmetry import minapix
 from .helpers import checkFile

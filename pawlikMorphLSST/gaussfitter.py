@@ -61,7 +61,6 @@ def moments(data: np.ndarray, angle_guess=90.0) -> List[float]:
 
     total = np.abs(data).sum()
 
-    Y, X = np.indices(data.shape)  # python convention: reverse x,y np.indices
     y = int(data.shape[1] / 2)  # np.argmax((X*np.abs(data)).sum(axis=1)/total)
     x = int(data.shape[0] / 2)  # np.argmax((Y*np.abs(data)).sum(axis=0)/total)
 

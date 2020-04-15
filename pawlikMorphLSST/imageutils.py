@@ -216,7 +216,6 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
         # convert object RA, DEC to pixels
         pos = SkyCoord(obj[0], obj[1], unit="deg")
         pixelPos = wcs.utils.skycoord_to_pixel(pos, wcs=wcsFromHeader)
-        x, y = pixelPos
 
         # get object psfMag_r
         objectMag = obj[3]
@@ -240,7 +239,7 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
             masks = aps.to_mask(method="subpixel")
             aperMask = np.where(masks.to_image(image.shape) > 0., 1., 0.)
             mask = np.logical_or(mask, aperMask)
-            tmp = image*~mask + ((skyCount+1000)*mask)
+            tmp = image*~mask + ((skyCount+1000)*mask)  # not used??
 
     # invert calculated mask so that future calculations work
     if len(objs) > 0:

@@ -86,7 +86,6 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
 
         a[i] = np.sum(regionResidual) / (2. * np.sum(np.abs(region)))
 
-    aMinimum = np.min(a)
     aMinimumIndex = np.argmin(a)
 
     return centroidCandidates[aMinimumIndex]

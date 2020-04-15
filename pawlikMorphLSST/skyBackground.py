@@ -151,7 +151,6 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
 
     if skyMask.count() < 100:
         raise _SkyError(f"Error! Sky region too small {skyMask.count()}")
-        sys.exit()
     # Flag the measurement if sky region smaller than 20000 pixels
     # (Simard et al. 2011)
     if skyMask.count() < 20000:
@@ -335,7 +334,6 @@ def _gauss2dfit(img: np.ndarray, imgsize: int) -> List[float]:
     # convert image to 1D array for fitting purposes
     imgravel = img.ravel()
 
-    xdata = np.vstack((X.ravel(), Y.ravel()))
     popt, pconv = optimize.curve_fit(twodgaussian, (X, Y), imgravel, p0=initial_guess)
 
     return np.abs(popt)
@@ -361,8 +359,6 @@ def _altgauss2dfit(image: np.ndarray, imgsize: float) -> models:
 
     fit_w = fitting.LevMarLSQFitter()
 
-    total = np.abs(imageOld).sum()
-    Y, X = np.indices(imageOld.shape)  # python convention: reverse x,y np.indices
     mean = np.mean(imageOld)
     xmid = int(imgsize / 2)
     ymid = int(imgsize / 2)
@@ -380,7 +376,6 @@ def _altgauss2dfit(image: np.ndarray, imgsize: float) -> models:
     imageOld -= mean
 
     # make initial guess
-    total = np.abs(imageOld).sum()
     y0 = int(image.shape[0] / 2)
     x0 = int(image.shape[1] / 2)
 

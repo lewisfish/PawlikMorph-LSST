@@ -5,7 +5,7 @@
 from typing import List, Tuple
 
 import numpy as np
-from photutils import EllipticalAperture, EllipticalAnnulus, CircularAperture, CircularAnnulus
+from photutils import CircularAperture, CircularAnnulus
 from photutils.morphology import gini as giniPhotutils
 import scipy.ndimage as ndi
 from scipy.optimize import brentq
@@ -362,8 +362,6 @@ def _getBackgroundSmoothness(image: np.ndarray, mask: np.ndarray, sky: float,
     boxSize = 32
     posX, posY = 0, 0
 
-    bgr = -99.
-
     # move box of size boxSize over image till we find an area that is
     # only background.
     # start at boxSize=32 then half if not found
@@ -374,7 +372,6 @@ def _getBackgroundSmoothness(image: np.ndarray, mask: np.ndarray, sky: float,
         boxMean = np.sum(skyPixels) / (boxSize**2)
 
         if np.abs(sky) > np.abs(boxMean) and not np.any(skyPixels) == -99.:
-            bgr = boxMean
             break
         else:
             posX += 2
@@ -387,7 +384,6 @@ def _getBackgroundSmoothness(image: np.ndarray, mask: np.ndarray, sky: float,
                     posX = 0
                     boxSize //= 2
                 else:
-                    bgr = -99.
                     break
 
     # Calculate smoothness
