@@ -1,5 +1,5 @@
 # PawlikMorph-LSST
-[![Documentation Status](https://readthedocs.org/projects/pawlikmorph-lsst/badge/?version=latest)](https://pawlikmorph-lsst.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/pawlikmorph-lsst/badge/?version=latest)](https://pawlikmorph-lsst.readthedocs.io/en/latest/?badge=latest) [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/lewisfish/PawlikMorph-LSST.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/lewisfish/PawlikMorph-LSST/context:python)
 
 Translation and optimisation of SEDMORPH's [PawlikMorph](https://github.com/SEDMORPH/PawlikMorph) IDL code for analysing images of galaxies from SDSS data release 7
 
