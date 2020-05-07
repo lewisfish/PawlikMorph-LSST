@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
+import warnings
 
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.nddata import Cutout2D
 from astropy.wcs import WCS
 from astropy import units
+from astropy.utils.exceptions import AstropyWarning
 
 try:
     import lsst.daf.persistence as dafPersist
@@ -12,6 +14,9 @@ try:
     import lsst.afw.image as afwImage
 except ImportError:
     lsst = None
+
+
+__all__ = ["sdssImage", "lsstImage"]
 
 
 class Image(ABC):
@@ -39,10 +44,17 @@ class sdssImage(Image):
         self.filename = filename
         self.image = None
 
-    def setView(self, ra, dec, npix):
-        img, self.header = fits.getdata(self.filename, header=True)
+    def setView(self, ra=None, dec=None, npix=128):
+        with warnings.catch_warnings():
+            # ignore invalid card warnings
+            warnings.simplefilter('ignore', category=AstropyWarning)
+            img, self.header = fits.getdata(self.filename, header=True)
+
         self.largeImage = img.byteswap().newbyteorder()
-        self.cutout = self._make_cutout(ra, dec, npix)
+        if self.largeImage.shape[0] >= npix and ra and dec:
+            self.cutout = self._make_cutout(ra, dec, npix)
+        else:
+            self.cutout = self.largeImage
 
     def getImage(self):
         self.image = self.cutout
@@ -69,8 +81,7 @@ class lsstImage(Image):
         self.butler = dafPersist.Butler(filename)
         self.image = None
         if lsst is none:
-            raise ImportError:
-                print("LSST stack not installed!")
+            raise ImportError("LSST stack not installed!")
 
     def setView(self, ra, dec, run, camCol, field, filter, npix=128):
         self.largeImage = self.butler.get("fpC", run=run, camcol=camCol, field=field, filter=filter)

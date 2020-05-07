@@ -14,6 +14,7 @@ from .apertures import aperpixmap
 from .asymmetry import calcA
 from .asymmetry import minapix
 from .helpers import checkFile
+from .image import sdssImage, lsstImage
 from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
 from .casgm import gini, m20, concentration, calcR20_R80, smoothness
@@ -275,7 +276,13 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
     newResult = Result(file.name, outfolder, occludedSaveFile)
 
     try:
-        img, header, imgsize = checkFile(file)
+        sdssimg = sdssImage(file)
+
+        sdssimg.setView()
+        img = sdssimg.getImage()
+        header = sdssimg.getHeader()
+        imgsize = img.shape[0]
+        # img, header, imgsize = checkFile(file)
     except IOError:
         print(f"File {file}, does not exist!")
         return newResult
