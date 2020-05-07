@@ -4,17 +4,20 @@ import warnings
 from multiprocessing import Pool
 
 import numpy as np
-import parsl
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
-from parsl.app.app import python_app
-from parsl.configs.local_threads import config
+try:
+    import parsl
+    from parsl.app.app import python_app
+    from parsl.configs.local_threads import config
+except ModuleNotFoundError:
+    parsl = None
 
 from .apertures import aperpixmap
 from .asymmetry import calcA
 from .asymmetry import minapix
 from .helpers import checkFile
-from .image import sdssImage, lsstImage
+from .image import Image
 from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
 from .casgm import gini, m20, concentration, calcR20_R80, smoothness
@@ -276,11 +279,11 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
     newResult = Result(file.name, outfolder, occludedSaveFile)
 
     try:
-        sdssimg = sdssImage(file)
+        imgObj = Image("sdss", filename=file)
 
-        sdssimg.setView()
-        img = sdssimg.getImage()
-        header = sdssimg.getHeader()
+        imgObj.setView()
+        img = imgObj.getImage()
+        header = imgObj.getHeader()
         imgsize = img.shape[0]
         # img, header, imgsize = checkFile(file)
     except IOError:

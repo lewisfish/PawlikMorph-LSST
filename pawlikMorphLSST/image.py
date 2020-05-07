@@ -16,7 +16,7 @@ except ImportError:
     lsst = None
 
 
-__all__ = ["sdssImage", "lsstImage"]
+__all__ = ["Image"]
 
 
 class Image(ABC):
@@ -36,12 +36,20 @@ class Image(ABC):
     def _make_cutout(self, ra, dec, npix):
         pass
 
+    def __new__(cls, _IMAGE_TYPE, **kwargs):
+        subclass_map = {subclass._IMAGE_TYPE: subclass for subclass in cls.__subclasses__()}
+        subclass = subclass_map[_IMAGE_TYPE]
+        instance = super(Image, subclass).__new__(subclass)
+        return instance
+
 
 class sdssImage(Image):
     """Class for SDSS images, as ingested by standard 'method'"""
-    def __init__(self, filename):
+    _IMAGE_TYPE = "sdss"
+
+    def __init__(self, *args, **kwargs):
         super(sdssImage, self).__init__()
-        self.filename = filename
+        self.filename = kwargs["filename"]
         self.image = None
 
     def setView(self, ra=None, dec=None, npix=128):
@@ -76,9 +84,11 @@ class lsstImage(Image):
         some metadata not available
         this includes wcs, and pixel value conversion information (bscal, bzero etc)
     """
-    def __init__(self, filename):
+    _IMAGE_TYPE = "lsst"
+
+    def __init__(self, *args, **kwargs):
         super(lsstImage, self).__init__()
-        self.butler = dafPersist.Butler(filename)
+        self.butler = dafPersist.Butler(kwargs["filename"])
         self.image = None
         if lsst is none:
             raise ImportError("LSST stack not installed!")
