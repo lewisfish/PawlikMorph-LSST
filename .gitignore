@@ -1,3 +1,4 @@
+docs/_*
 libs/*
 *.pro
 *.pl
@@ -8,3 +9,8 @@ exp/*
 bad/*
 hsc_data/*
 *.ipynb*
+output/*
+results/*
+sample/*
+*.csv
+*.png

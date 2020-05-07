@@ -13,7 +13,6 @@ from astropy.modeling import models
 from astropy.utils.exceptions import AstropyWarning
 from astropy.visualization import LogStretch
 from matplotlib.offsetbox import AnchoredText
-from scipy.ndimage import gaussian_filter
 
 from .result import Result
 

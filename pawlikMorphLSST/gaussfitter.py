@@ -59,10 +59,8 @@ def moments(data: np.ndarray, angle_guess=90.0) -> List[float]:
 
     """
 
-    total = np.abs(data).sum()
-
-    y = int(data.shape[1] / 2)  # np.argmax((X*np.abs(data)).sum(axis=1)/total)
-    x = int(data.shape[0] / 2)  # np.argmax((Y*np.abs(data)).sum(axis=0)/total)
+    y = int(data.shape[1] / 2)
+    x = int(data.shape[0] / 2)
 
     col = data[int(y), :]
     width_x = np.sqrt(np.abs((np.arange(col.size)-y)**2*col).sum() / np.abs(col).sum())
