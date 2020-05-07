@@ -114,6 +114,9 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                           "sersic_theta", "time", "star_flag",
                           "Masked pixel fraction", "Object on image edge?"])
 
+    if parsl is None and parallelLibrary == "parsl":
+        raise Import Error("Parsl not installed!")
+
     if catalogue:
         outfile = outfolder / occludedSaveFile
         objcsvfile = open(outfile, mode="w")

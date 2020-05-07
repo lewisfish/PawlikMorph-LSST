@@ -88,10 +88,10 @@ class lsstImage(Image):
 
     def __init__(self, *args, **kwargs):
         super(lsstImage, self).__init__()
+        if lsst is None:
+            raise ImportError("LSST stack not installed!")
         self.butler = dafPersist.Butler(kwargs["filename"])
         self.image = None
-        if lsst is none:
-            raise ImportError("LSST stack not installed!")
 
     def setView(self, ra, dec, run, camCol, field, filter, npix=128):
         self.largeImage = self.butler.get("fpC", run=run, camcol=camCol, field=field, filter=filter)
