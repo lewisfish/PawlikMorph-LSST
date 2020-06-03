@@ -1,9 +1,13 @@
+"""
+This package can be extended by subclassing Image and implmenting thre required methods, and _IMAGE_TYPE.
+"""
+
 from abc import ABC, abstractmethod
 import warnings
 
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from astropy.nddata import Cutout2D
+from astropy.nddata import Cutout2D, PartialOverlapError
 from astropy.wcs import WCS
 from astropy import units
 from astropy.utils.exceptions import AstropyWarning
@@ -19,9 +23,9 @@ except ImportError:
 __all__ = ["Image", "readImage"]
 
 
-def readImage(imgType: str, filename: str, ra: float, dec: float, header=False):
+def readImage(imgType: str, filename: str, ra: float, dec: float, npix=128, header=False):
     imgObj = Image(imgType, filename=filename)
-    imgObj.setView(ra=ra, dec=dec)
+    imgObj.setView(ra=ra, dec=dec, npix=npix)
     img = imgObj.getImage()
     if header:
         header = imgObj.getHeader()
@@ -52,7 +56,10 @@ class Image(ABC):
     # probably needs exception handling...
     def __new__(cls, _IMAGE_TYPE, **kwargs):
         subclass_map = {subclass._IMAGE_TYPE: subclass for subclass in cls.__subclasses__()}
-        subclass = subclass_map[_IMAGE_TYPE]
+        try:
+            subclass = subclass_map[_IMAGE_TYPE]
+        except KeyError as e:
+            raise ValueError("Invalid image class!") from e
         instance = super(Image, subclass).__new__(subclass)
         return instance
 

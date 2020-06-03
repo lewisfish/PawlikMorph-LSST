@@ -11,7 +11,45 @@ import scipy.ndimage as ndi
 from scipy.optimize import brentq
 from skimage.measure import moments_central, moments
 
-__all__ = ["gini", "m20", "concentration", "smoothness", "calcR20_R80"]
+__all__ = ["gini", "m20", "concentration", "smoothness", "calcR20_R80", "calculateCSGM"]
+
+
+def calculateCSGM(image: np.ndarray, mask: np.ndarray, skybgr: float, ) -> Tuple[float]:
+    """Helper function that calculates the CSGM parameters
+
+    Parameters
+    ----------
+
+    image : np.ndarray, 2D float
+        Image of a galxy for which the CSGM parameters are to be calculated
+
+    mask : np.ndarray, 2D uint8
+        Image for which only the pixels that belong to the galaxin in "image" are "hot".
+
+    skybgr : float
+        The value of the sky background in the given image
+
+    Returns
+    -------
+
+    C, S, gini, m20: Tuple[float]
+        The CSGM parameters
+
+    """
+
+    Rmax = calcRmax(image, pixelmap)
+    aperturepixmap = aperpixmap(image.shape[0], Rmax, 9, 0.1)
+
+    starmask = np.ones_like(image)
+    apix = minapix(image, pixelmap, aperturepixmap, starmask)
+
+    r20, r80 = calcR20_R80(image, apix, Rmax)
+    C = concentration(r20, r80)
+    gini = gini(image, mask)
+    S = smoothness(image, mask, apix, Rmax, r20, skybgr)
+    m20 = m20(image, mask)
+
+    return C, S, gini, m20
 
 
 def _getCircularFraction(image: np.ndarray, centroid: List[float],

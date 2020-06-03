@@ -26,6 +26,7 @@ def calculateAsymmetries(image: np.ndarray, pixelmap: np.ndarray) -> Tuple[float
     -------
 
     A, As, As90 : Tuple, float
+        The calculated asymmetry values.
 
     """
 
