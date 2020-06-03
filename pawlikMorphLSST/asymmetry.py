@@ -1,12 +1,49 @@
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 from scipy import ndimage
 from skimage import transform
 
-from .apertures import apercentre
+from .apertures import apercentre, aperpixmap
+from . pixmap import calcRmax
 
-__all__ = ["minapix", "calcA"]
+__all__ = ["minapix", "calcA", "calculateAsymmetries"]
+
+
+def calculateAsymmetries(image: np.ndarray, pixelmap: np.ndarray) -> Tuple[float]:
+    """helper function to calculate all asymmetries
+
+    Parameters
+    ----------
+
+    image : np.ndarray, 2d float
+        image of a galaxy for which the asymmetries should be calculated.
+
+    pixelmap : np.ndarray, 2d uint8
+        Pixel mask of the galaxy calculated from image.
+
+    Returns
+    -------
+
+    A, As, As90 : Tuple, float
+
+    """
+
+    Rmax = calcRmax(image, pixelmap)
+    aperturepixmap = aperpixmap(image.shape[0], Rmax, 9, 0.1)
+
+    starmask = np.ones_like(image)
+    apix = minapix(image, pixelmap, aperturepixmap, starmask)
+    angle = 180.
+
+    A = calcA(image, pixelmap, aperturepixmap, apix, angle, starmask, noisecorrect=True)
+
+    As = calcA(pixelmap, pixelmap, aperturepixmap, apix, angle, starmask)
+
+    angle = 90.
+    As90 = calcA(pixelmap, pixelmap, aperturepixmap, apix, angle, starmask)
+
+    return A[0], As[0], As90[0]
 
 
 def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
