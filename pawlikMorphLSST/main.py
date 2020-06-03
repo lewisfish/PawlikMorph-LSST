@@ -16,7 +16,6 @@ except ModuleNotFoundError:
 from .apertures import aperpixmap
 from .asymmetry import calcA
 from .asymmetry import minapix
-from .helpers import checkFile
 from .image import Image
 from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG

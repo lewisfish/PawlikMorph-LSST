@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 
-from astropy import units
 from astropy import wcs
 from astropy.coordinates import SkyCoord
 from astropy.io import fits

@@ -32,7 +32,7 @@ def readImage(imgType: str, filename: str, ra: float, dec: float, header=False):
 
 class Image(ABC):
     """Abstract base class for images"""
-    def __init__(self):
+    def __init__(self, filename=None):
         super(Image, self).__init__()
 
     @abstractmethod
