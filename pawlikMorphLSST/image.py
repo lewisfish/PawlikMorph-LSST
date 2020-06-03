@@ -16,7 +16,18 @@ except ImportError:
     lsst = None
 
 
-__all__ = ["Image"]
+__all__ = ["Image", "readImage"]
+
+
+def readImage(imgType: str, filename: str, ra: float, dec: float, header=False):
+    imgObj = Image(imgType, filename=filename)
+    imgObj.setView(ra=ra, dec=dec)
+    img = imgObj.getImage()
+    if header:
+        header = imgObj.getHeader()
+        return img, header
+    else:
+        return img
 
 
 class Image(ABC):
@@ -36,6 +47,9 @@ class Image(ABC):
     def _make_cutout(self, ra, dec, npix):
         pass
 
+    # TODO
+    # new function that gets the correct implmentationn based upoin user passed string
+    # probably needs exception handling...
     def __new__(cls, _IMAGE_TYPE, **kwargs):
         subclass_map = {subclass._IMAGE_TYPE: subclass for subclass in cls.__subclasses__()}
         subclass = subclass_map[_IMAGE_TYPE]
@@ -74,7 +88,7 @@ class sdssImage(Image):
     def _make_cutout(self, ra, dec, npix):
         wcs = WCS(self.header)
         position = SkyCoord(ra*units.deg, dec*units.deg)
-        stamp = Cutout2D(self.largeImage.data, position=position, size=(npix, npix), wcs=wcs)
+        stamp = Cutout2D(self.largeImage.data, position=position, size=(npix, npix), wcs=wcs, mode="strict")
 
         return stamp.data
 

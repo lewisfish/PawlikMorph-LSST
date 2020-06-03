@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple, Any
 
+__all__ = ["Result"]
+
 
 @dataclass
 class Result:

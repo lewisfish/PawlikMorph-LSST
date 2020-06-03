@@ -115,7 +115,7 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                           "Masked pixel fraction", "Object on image edge?"])
 
     if parsl is None and parallelLibrary == "parsl":
-        raise Import Error("Parsl not installed!")
+        raise ImportError("Parsl not installed!")
 
     if catalogue:
         outfile = outfolder / occludedSaveFile
