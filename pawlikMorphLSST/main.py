@@ -16,6 +16,7 @@ except ModuleNotFoundError:
 from .apertures import aperpixmap
 from .asymmetry import calcA
 from .asymmetry import minapix
+from .engines import multiprocEngine
 from .image import Image
 from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
@@ -29,21 +30,6 @@ from .sersic import fitSersic
 from .skyBackground import skybgr
 
 __all__ = ["calcMorphology"]
-
-
-class Engine(object):
-    '''Class existences so that Pool method can be used on _analyseImage.
-       Basically a way to pass the function arguments that are he same with
-       one variable argument, i.e the file name'''
-
-    def __init__(self, parameters):
-        '''This sets the arguments for the function passed to pool via
-           engine'''
-        self.parameters = parameters
-
-    def __call__(self, filename):
-        '''This calls the function when engine is called on pool'''
-        return _analyseImage(filename, *self.parameters)
 
 
 def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: int,
@@ -125,12 +111,12 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
     if parallelLibrary == "multi":
         # https://stackoverflow.com/questions/20190668/multiprocessing-a-for-loop
         pool = Pool(cores)
-        engine = Engine([outfolder, filterSize, asymmetry,
-                         shapeAsymmetry, allAsymmetry,
-                         calculateSersic, savePixelMap,
-                         saveCleanImage, imageSource, catalogue,
-                         largeImage, paramsaveFile, occludedSaveFile,
-                         numberSigmas, mask, CAS])
+        engine = multiprocEngine([outfolder, filterSize, asymmetry,
+                                  shapeAsymmetry, allAsymmetry,
+                                  calculateSersic, savePixelMap,
+                                  saveCleanImage, imageSource, catalogue,
+                                  largeImage, paramsaveFile, occludedSaveFile,
+                                  numberSigmas, mask, CAS])
         results = pool.map(engine, files)
         pool.close()
         pool.join()

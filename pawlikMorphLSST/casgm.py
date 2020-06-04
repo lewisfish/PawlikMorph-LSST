@@ -11,10 +11,14 @@ import scipy.ndimage as ndi
 from scipy.optimize import brentq
 from skimage.measure import moments_central, moments
 
+from . apertures import aperpixmap
+from . asymmetry import minapix
+from . pixmap import calcRmax
+
 __all__ = ["gini", "m20", "concentration", "smoothness", "calcR20_R80", "calculateCSGM"]
 
 
-def calculateCSGM(image: np.ndarray, mask: np.ndarray, skybgr: float, ) -> Tuple[float]:
+def calculateCSGM(image: np.ndarray, mask: np.ndarray, skybgr: float) -> Tuple[float]:
     """Helper function that calculates the CSGM parameters
 
     Parameters
@@ -37,19 +41,19 @@ def calculateCSGM(image: np.ndarray, mask: np.ndarray, skybgr: float, ) -> Tuple
 
     """
 
-    Rmax = calcRmax(image, pixelmap)
+    Rmax = calcRmax(image, mask)
     aperturepixmap = aperpixmap(image.shape[0], Rmax, 9, 0.1)
 
     starmask = np.ones_like(image)
-    apix = minapix(image, pixelmap, aperturepixmap, starmask)
+    apix = minapix(image, mask, aperturepixmap, starmask)
 
     r20, r80 = calcR20_R80(image, apix, Rmax)
     C = concentration(r20, r80)
-    gini = gini(image, mask)
+    g = gini(image, mask)
     S = smoothness(image, mask, apix, Rmax, r20, skybgr)
-    m20 = m20(image, mask)
+    m = m20(image, mask)
 
-    return C, S, gini, m20
+    return C, S, g, m
 
 
 def _getCircularFraction(image: np.ndarray, centroid: List[float],
