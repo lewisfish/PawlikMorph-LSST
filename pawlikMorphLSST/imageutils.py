@@ -68,6 +68,10 @@ def maskstarsSEG(image: np.ndarray) -> np.ndarray:
     kernel.normalize()
     segm = detect_sources(image, threshold, npixels=8, filter_kernel=kernel)
 
+    # if no sources return
+    if segm is None:
+        return imageClean
+
     # Save potions of segmentation map outwith object of interest
     stars = []
     for i, segment in enumerate(segm.segments):

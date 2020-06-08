@@ -8,9 +8,10 @@ import warnings
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.nddata import Cutout2D, PartialOverlapError
-from astropy.wcs import WCS
+from astropy import wcs
 from astropy import units
 from astropy.utils.exceptions import AstropyWarning
+import numpy as np
 
 try:
     import lsst.daf.persistence as dafPersist
@@ -87,15 +88,22 @@ class sdssImage(Image):
 
     def getImage(self):
         self.image = self.cutout
+        self.image = self.image.astype(np.float64)
+
         return self.image
 
     def getHeader(self):
         return self.header
 
     def _make_cutout(self, ra, dec, npix):
-        wcs = WCS(self.header)
+        w = wcs.WCS(self.header)
         position = SkyCoord(ra*units.deg, dec*units.deg)
-        stamp = Cutout2D(self.largeImage.data, position=position, size=(npix, npix), wcs=wcs, mode="strict")
+        position = wcs.utils.skycoord_to_pixel(position, wcs=w)
+        # There is a bug in Astropy that does not deal with reversed ctype
+        # headers in FITS files.
+        if w.wcs.ctype[0][0] == "D":
+            position = position[::-1]
+        stamp = Cutout2D(self.largeImage.data, position=position, size=(npix, npix), wcs=w, mode="strict")
 
         return stamp.data
 
