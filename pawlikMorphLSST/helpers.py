@@ -5,7 +5,7 @@ from pathlib import Path
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
 
-__all__ = ["checkFile", "getLocation"]
+__all__ = ["checkFile", "getLocation", "analyseImage"]
 
 
 class _Error(Exception):
@@ -68,6 +68,42 @@ def checkFile(filename):
     imgsize = img.shape[0]
 
     return img, header, imgsize
+
+
+def analyseImage(info, *args):
+    
+    from .asymmetry import calculateAsymmetries
+    from .casgm import calculateCSGM
+    from .image import readImage
+    from .imageutils import maskstartSEG
+    from .pixmap import pixelmap
+    from .skyBackground import skybgr
+
+    filename = info[0]
+
+    ra, dec = info[1], info[2]
+
+    try:
+        img = readImage("sdss", filename, ra, dec)
+    except (AttributeError, PartialOverlapError) as e:
+        # if image load fails return array of -99
+        return [-99 for i in range(0, 8)]
+
+    # preprocess last image
+    img = maskstarsSEG(img)
+    # estimate skybackground
+    try:
+        skybgr, skybgr_err, *_ = skybgr(img)
+
+        # create image where the only bright pixels are the pixels that belong to the galaxy
+        mask = pixelmap(img, skybgr + skybgr_err, 3)
+        A, As, As90 = calculateAsymmetries(img, mask)
+        C, S, gini, m20 = calculateCSGM(img, mask, skybgr)
+
+    except (AttributeError, RuntimeError) as e:
+        # if sky background estimation fails return array of -99
+        return [-99 for i in range(0, 8)]
+    return [A, As, As90, C, S, gini, m20, filename, ra, dec]
 
 
 def getFiles(imgSource, file=None, folder=None):
