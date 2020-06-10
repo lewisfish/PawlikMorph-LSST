@@ -12,5 +12,5 @@ dependencies:
   - pandas
   - photutils
   - parsl
-  - jupyter
+prefix: /home/lewis/anaconda3/envs/pawlikMorph-lsst
 
