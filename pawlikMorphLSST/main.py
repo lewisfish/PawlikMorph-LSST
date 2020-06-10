@@ -111,7 +111,8 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
     if parallelLibrary == "multi":
         # https://stackoverflow.com/questions/20190668/multiprocessing-a-for-loop
         pool = Pool(cores)
-        engine = multiprocEngine([outfolder, filterSize, asymmetry,
+        engine = multiprocEngine(_analyseImage,
+                                 [outfolder, filterSize, asymmetry,
                                   shapeAsymmetry, allAsymmetry,
                                   calculateSersic, savePixelMap,
                                   saveCleanImage, imageSource, catalogue,
