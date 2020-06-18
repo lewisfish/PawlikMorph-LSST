@@ -46,7 +46,6 @@ def calculateCSGM(image: np.ndarray, mask: np.ndarray, skybgr: float) -> Tuple[f
 
     starmask = np.ones_like(image)
     apix = minapix(image, mask, aperturepixmap, starmask)
-
     r20, r80 = calcR20_R80(image, apix, Rmax)
     C = concentration(r20, r80)
     g = gini(image, mask)
@@ -89,7 +88,7 @@ def _getCircularFraction(image: np.ndarray, centroid: List[float],
     totalSum = apeture_total.do_photometry(image, method="exact")[0][0]
 
     # number of points for grid
-    npoints = float(100)
+    npoints = float(200)
 
     # grid spacing
     deltaRadius = (radius / npoints) * 2.
@@ -100,7 +99,7 @@ def _getCircularFraction(image: np.ndarray, centroid: List[float],
     # loop until bracketing values are found for the root at which is
     # our desired radius.
     while True:
-        apCur = CircularAperture(centroid, radiusCurrent,)
+        apCur = CircularAperture(centroid, radiusCurrent)
         currentSum = apCur.do_photometry(image, method="exact")[0][0]
         currentFraction = currentSum / totalSum
         if currentFraction <= fraction:
@@ -229,12 +228,11 @@ def gini(image: np.ndarray, mask: np.ndarray) -> float:
     Parameters
     ----------
 
-    image : image, 2d np.ndarray
+    image : float, 2d np.ndarray
         Image from which the Gini index shall be calculated
 
-    flux : float
-        The elliptical Petrosian flux, at which is defined as the cutoff for
-        calculating the Gini index.
+    mask : int, 2D np.ndarray
+        TMask which contains the galaxies pixels
 
     Returns
     -------
@@ -243,8 +241,7 @@ def gini(image: np.ndarray, mask: np.ndarray) -> float:
         The Gini index.
     '''
 
-    # Only calculate the Gini index on pixels that belong to the galaxy where
-    # the flux is greater than the elliptical Petrosian radius.
+    # Only calculate the Gini index on pixels that belong to the galaxy
     img = image[mask > 0]
     G = giniPhotutils(img)
 
@@ -364,8 +361,8 @@ def smoothness(image: np.ndarray, mask: np.ndarray, centroid: List[float],
     imageFlux = imageApeture.do_photometry(image, method="exact")[0][0]
     diffFlux = imageApeture.do_photometry(imageDiff, method="exact")[0][0]
     backgroundSmooth = _getBackgroundSmoothness(image, mask, sky, r20)
-    S = (diffFlux - imageApeture.area*backgroundSmooth) / imageFlux
-
+    S = (diffFlux) / imageFlux
+    
     return S
 
 
