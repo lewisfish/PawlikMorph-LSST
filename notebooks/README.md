@@ -16,7 +16,7 @@ The second notebook expands upon using A, and As to find "interesting" galaxies.
 ## Installation/Running Instructions
 
 These notebooks were designed to run on the [SciServer](https://www.sciserver.org/) enviroment.
-This [Link](need to make pdf) gives the details on how to sign up and setup the correct enviroment on SciServer in order to run these notebooks.
+This [link](https://github.com/lewisfish/PawlikMorph-LSST/blob/master/notebooks/Registering%20for%20and%20setting%20up%20SciServer.pdf) gives the details on how to sign up and setup the correct enviroment on SciServer in order to run these notebooks.
 
 ## Requirements
 
