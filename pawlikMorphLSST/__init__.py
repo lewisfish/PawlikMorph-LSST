@@ -4,11 +4,11 @@
 
 __all__ = []
 
-from . gaussfitter import *
+from .gaussfitter import *
 __all__ += gaussfitter.__all__
 
 
-from . pixmap import *
+from .pixmap import *
 __all__ += pixmap.__all__
 
 
