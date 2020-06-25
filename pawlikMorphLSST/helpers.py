@@ -1,6 +1,7 @@
-import sys
-import warnings
 from pathlib import Path
+import sys
+from typing import List, Union
+import warnings
 
 from astropy.io import fits
 from astropy.nddata import PartialOverlapError
@@ -71,8 +72,23 @@ def checkFile(filename):
     return img, header, imgsize
 
 
-def analyseImage(info, *args):
-    
+def analyseImage(info: List[Union[float, str]], *args) -> List[Union[float, str]]:
+    """Helper function that calculates CASGM including As and AS90
+
+    Parameters
+    ----------
+
+    info : List[str, float, float]
+        List of filename, RA, and DEC
+
+    Returns
+    -------
+
+    Tuple[float, float, float, float, float, float, float, str, float, float]
+        A, As, AS90, C, S, gini, M20, filename , RA, DEC
+
+    """
+
     from .asymmetry import calculateAsymmetries
     from .casgm import calculateCSGM
     from .image import readImage
@@ -108,7 +124,7 @@ def analyseImage(info, *args):
     return [A, As, As90, C, S, gini, m20, filename, ra, dec]
 
 
-def getFiles(imgSource, file=None, folder=None):
+def getFiles(imgSource: str, file=None, folder=None):
     '''Function to get files for analysis
 
     Parameters

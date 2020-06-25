@@ -28,7 +28,7 @@ def calculateCSGM(image: np.ndarray, mask: np.ndarray, skybgr: float) -> Tuple[f
         Image of a galxy for which the CSGM parameters are to be calculated
 
     mask : np.ndarray, 2D uint8
-        Image for which only the pixels that belong to the galaxin in "image" are "hot".
+        Image for which only the pixels that belong to the galaxy in "image" are "hot".
 
     skybgr : float
         The value of the sky background in the given image
@@ -190,6 +190,9 @@ def calcR20_R80(image: np.ndarray, centroid: List[float],
 
 def concentration(r20: float, r80: float) -> float:
     r'''Calculation of the concentration of light in a galaxy.
+
+    .. math::
+        C = 5log_{10}(\frac{r_{80}}{r_{20}})
 
     see Lotz et al. 2004 https://doi.org/10.1086/421849
 
@@ -362,7 +365,7 @@ def smoothness(image: np.ndarray, mask: np.ndarray, centroid: List[float],
     diffFlux = imageApeture.do_photometry(imageDiff, method="exact")[0][0]
     backgroundSmooth = _getBackgroundSmoothness(image, mask, sky, r20)
     S = (diffFlux) / imageFlux
-    
+
     return S
 
 

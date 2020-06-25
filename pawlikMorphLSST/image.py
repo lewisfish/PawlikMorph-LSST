@@ -24,8 +24,38 @@ except ImportError:
 __all__ = ["Image", "readImage"]
 
 
-def readImage(imgType: str, filename: str, ra: float, dec: float, npix=128, header=False):
-    imgObj = Image(imgType, filename=filename)
+def readImage(filename: str, ra: float, dec: float, npix=128, header=False):
+    """ Helper function that can be used to read images directly without need
+        to maunally create Image class.
+
+    Parameters
+    ----------
+
+    filename : sty
+        location of image to read
+
+    ra : float
+        RA, right acension of object of interest in image
+
+    dec : float
+        DEC, declination of object of interest in image
+
+    npix: int, optional
+        Size of cutout to return from larger image. Default is 128
+
+    header: bool, optional
+        If true return header information as well. Default is False
+
+    Returns
+    -------
+
+    img : np.ndarray, 2D, float
+        Cutout image.
+    If header=True then also returns the header from the FITS file.
+
+    """
+
+    imgObj = Image("sdss", filename=filename)
     imgObj.setView(ra=ra, dec=dec, npix=npix)
     img = imgObj.getImage()
     if header:
@@ -111,8 +141,9 @@ class sdssImage(Image):
 class lsstImage(Image):
     """Class for SDSS images ingested via LSST dataButler
         some metadata not available
-        this includes wcs, and pixel value conversion information (bscal, bzero etc)
+        this includes wcs, and pixel value conversion information (bscale, bzero etc)
     """
+
     _IMAGE_TYPE = "lsst"
 
     def __init__(self, *args, **kwargs):

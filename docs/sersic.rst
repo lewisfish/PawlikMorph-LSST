@@ -1,9 +1,9 @@
 *****
-CASgm
+Sersic
 *****
 
 
-.. automodule:: pawlikMorphLSST.casgm
+.. automodule:: pawlikMorphLSST.sersic
     :members:
     :undoc-members:
     :noindex:

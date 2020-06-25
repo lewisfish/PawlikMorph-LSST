@@ -40,7 +40,8 @@ def _inBbox(extent: List[float], point: List[float]) -> bool:
 
 
 def maskstarsSEG(image: np.ndarray) -> np.ndarray:
-    '''"Cleans" image of external sources.
+    """ 'Cleans' image of external sources.
+        For example will remove all stars that do not interfere with the object of interest.
 
     Parameters
     ----------
@@ -54,7 +55,7 @@ def maskstarsSEG(image: np.ndarray) -> np.ndarray:
     imageClean : np.ndarray
         Image cleaned of external sources.
 
-    '''
+    """
 
     cenpix = np.array([int(image.shape[0]/2) + 1, int(image.shape[1]/2) + 1])
     mean, median, std = sigma_clipped_stats(image, sigma=3.)
@@ -71,7 +72,7 @@ def maskstarsSEG(image: np.ndarray) -> np.ndarray:
     # if no sources return
     if segm is None:
         return imageClean
-    
+
     # Save potions of segmentation map outwith object of interest
     stars = []
     for i, segment in enumerate(segm.segments):
@@ -131,9 +132,15 @@ def _circle_mask(shape: Tuple[int], centre: Tuple[int], radius: float):
     return circmask*anglemask
 
 
-def _calculateRadius(y, A, sigma):
-    ''' function that calculates the radius of a Gaussian for a given y
-        y = A * exp(*x^2/(s*sig^2))
+def _calculateRadius(y: float, A: float, sigma: float) -> float:
+    r''' Function that calculates the radius of a Gaussian for a given y
+        Standard Gaussian
+        .. math:
+            y = A * exp(x^2/(s*sig^2))
+        Rearange for s
+        .. math:
+            \sigma * \sqrt{\left|2 log_e(\frac{A}{y})\right|}
+
 
     Parameters
     ----------

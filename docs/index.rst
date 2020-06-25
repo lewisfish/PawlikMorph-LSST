@@ -26,7 +26,17 @@ User Documentation
 .. toctree::
     :maxdepth: 1
 
+    apertures.rst
     casgm.rst
+    asymmetry.rst
+    sersic.rst
+    pixmap.rst
+    objectMasker.rst
+    result.rst
+    image.rst
+    imageutils.rst
+    skyBackground.rst
+    helpers.rst
     diagnostic.rst
 
 

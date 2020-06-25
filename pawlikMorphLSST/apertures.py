@@ -43,10 +43,10 @@ def makeaperpixmaps(npix: int, folderpath=None) -> None:
 def aperpixmap(npix: int, rad: float,  nsubpix: int, frac: float) -> np.ndarray:
     '''Calculate aperture binary mask.
 
-    Calculates the aperture binary mask through pixel sampling knowing
-    the aperture radius and number of subpixels.
+       Calculates the aperture binary mask through pixel sampling knowing
+       the aperture radius and number of subpixels.
 
-   Near direct translation of IDL code.
+       Near direct translation of IDL code.
 
     Parameters
     ----------
@@ -69,6 +69,7 @@ def aperpixmap(npix: int, rad: float,  nsubpix: int, frac: float) -> np.ndarray:
     np.ndarry
         Numpy array that stores the mask.
     '''
+
     npix = int(npix)
 
     cenpix = np.array([int(npix/2) + 1, int(npix/2) + 1])
@@ -130,6 +131,9 @@ def aperpixmap(npix: int, rad: float,  nsubpix: int, frac: float) -> np.ndarray:
 @nb.njit(nb.float64[:, :](nb.int64, nb.int64, nb.int64[:]))
 def distarr(npixx: int, npixy: int, cenpix: np.ndarray) -> np.ndarray:
     '''Creates an array of distances from given centre pixel.
+
+    Near direct translation of IDL code.
+
 
     Parameters
     ----------

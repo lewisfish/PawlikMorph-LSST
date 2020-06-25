@@ -4,7 +4,7 @@ import numpy as np
 from scipy import ndimage
 from skimage import transform
 
-from .apertures import apercentre, aperpixmap
+from . apertures import apercentre, aperpixmap
 from . pixmap import calcRmax
 
 __all__ = ["minapix", "calcA", "calculateAsymmetries"]
@@ -132,7 +132,14 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
 def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
           centroid: List[int], angle: float, starMask=None,
           noisecorrect=False) -> List[float]:
-    """Function to calculate A, the asymmetry parameter.
+    r"""Function to calculate A, the asymmetry parameter.
+
+    .. math::
+        A=\frac{\sum\left|I_0-I_{\theta}\right|}{2\sum I_0}-A_{bgr}
+
+    Where :math:`I_0` is the original image, :math:`I_{\theta}` is the image rotated by :math:`\theta` degrees, and :math:`A_{bgr}` is the asymmerty of the sky.
+
+    See `Conselice et al. <https://doi.org/10.1086/308300>`_ for full details.
 
     Near direct translation of IDL code.
 
