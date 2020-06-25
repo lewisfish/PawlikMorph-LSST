@@ -1,6 +1,6 @@
-*****
+******
 Sersic
-*****
+******
 
 
 .. automodule:: pawlikMorphLSST.sersic

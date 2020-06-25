@@ -4,11 +4,8 @@
 
 __all__ = []
 
-from .gaussfitter import *
-__all__ += gaussfitter.__all__
 
-
-from .pixmap import *
+from . pixmap import *
 __all__ += pixmap.__all__
 
 
@@ -58,3 +55,7 @@ __all__ += image.__all__
 
 from . engines import *
 __all__ += engines.__all__
+
+
+from . gaussfitter import *
+__all__ += gaussfitter.__all__
