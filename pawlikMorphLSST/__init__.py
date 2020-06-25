@@ -2,6 +2,6 @@
     morphological properties.
 '''
 
-__all__ = ["gaussfitter", "pixmap", "apertures", "asymmetry",
+__all__ = ["gaussfitter", "pixmap", "apertures", "asymmetry", "engines"
            "imageutils", "objectMasker", "sersic", "result", "main",
            "casgm", "helpers", "skyBackground", "image", "diagnostic"]
