@@ -260,6 +260,8 @@ def m20(image: np.ndarray, mask: np.ndarray) -> float:
 
     see Lotz et al. 2004 https://doi.org/10.1086/421849
 
+    Adapted from statmorph: https://github.com/vrodgom/statmorph
+
     Parameters
     ----------
 
@@ -364,7 +366,7 @@ def smoothness(image: np.ndarray, mask: np.ndarray, centroid: List[float],
     imageFlux = imageApeture.do_photometry(image, method="exact")[0][0]
     diffFlux = imageApeture.do_photometry(imageDiff, method="exact")[0][0]
     backgroundSmooth = _getBackgroundSmoothness(image, mask, sky, r20)
-    S = (diffFlux) / imageFlux
+    S = (diffFlux - imageApeture.area*backgroundSmooth) / imageFlux
 
     return S
 
