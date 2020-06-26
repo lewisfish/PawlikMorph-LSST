@@ -100,7 +100,7 @@ def analyseImage(info: List[Union[float, str]], *args) -> List[Union[float, str]
     ra, dec = info[1], info[2]
 
     try:
-        img = readImage("sdss", filename, ra, dec)
+        img = readImage(filename, ra, dec)
     except (AttributeError, PartialOverlapError) as e:
         # if image load fails return array of -99
         return [-99 for i in range(0, 8)]
