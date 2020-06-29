@@ -141,13 +141,28 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
     except RuntimeError:
         r_in, fwhms, theta = _fitAltGauss(img, smallimg)
 
-    skyMask, skyRegion = _getSkyRegion(img, distarrvar, r_in, fwhms, cenpix, theta)
+    # Make sure that the radius of the object is not greater than the image,
+    # as this can cause memory issues
+    if fwhm[0] > 1.414 * npix:
+        fwhm[0] = 1.414 * npix
+    if fwhm[1] > 1.414 * npix:
+        fwhm[1] = 1.414 * npix
+
+    skyMask, skyRegion = _getSkyRegion(img, distarrvar, fwhms, cenpix, theta)
 
     # if r_in massive then image may contain on object
     if skyMask.count() < 300 or r_in > imgsize * 3:
         # if skyregion too small try with more robust Gaussian fitter
         r_in, fwhms, theta = _fitAltGauss(img, smallimg)
-        skyMask, skyRegion = _getSkyRegion(img, distarrvar, r_in, fwhms, cenpix, theta)
+
+        # Make sure that the radius of the object is not greater than the image,
+        # as this can cause memory issues
+        if fwhm[0] > 1.414 * npix:
+            fwhm[0] = 1.414 * npix
+        if fwhm[1] > 1.414 * npix:
+            fwhm[1] = 1.414 * npix
+
+        skyMask, skyRegion = _getSkyRegion(img, distarrvar, fwhms, cenpix, theta)
 
     if skyMask.count() < 100:
         raise _SkyError(f"Error! Sky region too small {skyMask.count()}")
@@ -265,7 +280,8 @@ def _fitAltGauss(img: np.ndarray, smallimg: bool) -> Tuple[float, List[float], f
     return r_in, [fwhm_x, fwhm_y], theta
 
 
-def _getSkyRegion(image: np.ndarray, distarrvar: np.ndarray, radius: float, fwhms, cenpix, theta) -> Tuple[np.ndarray, np.ndarray]:
+def _getSkyRegion(image: np.ndarray, distarrvar: np.ndarray, fwhms: List[float],
+                  cenpix: List[float], theta: float) -> Tuple[np.ndarray, np.ndarray]:
     '''Function to get sky region as a numpy mask array
 
     Parameters
@@ -277,8 +293,11 @@ def _getSkyRegion(image: np.ndarray, distarrvar: np.ndarray, radius: float, fwhm
     distarrvar : np.ndarray
         array of distances from centre of object
 
-    radius : float
-        Calculated radius of object.
+    fwhms: List[float]
+
+    cenpix: List[float]
+
+    theta: float
 
     Returns
     -------
