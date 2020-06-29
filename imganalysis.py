@@ -5,11 +5,6 @@ if __name__ == '__main__':
 
     parser = ArgumentParser(description="Analyse morphology of galaxies.")
 
-    parser.add_argument("-f", "--file", type=str,
-                        help="Path to single image to be analysed")
-    parser.add_argument("-fo", "--folder", type=str,
-                        help="Path to folder where images are to be analysed")
-
     parser.add_argument("-A", action="store_true",
                         help="Calculate asymmetry parameter")
     parser.add_argument("-As", action="store_true",
@@ -28,10 +23,16 @@ if __name__ == '__main__':
                         help="Use large cutout for sky background estimation.\
                         Expects the name of the large file to be\
                         [imageSource]lcutout_[RA][DEC].fits")
-    parser.add_argument("-src", "--imgsource", type=str, default="sdss",
-                        choices=["sdss", "hsc", "none"], help="Telescope source\
+
+    parser.add_argument("-f", "--file", type=str, help="File which contains\
+                        list of images, and RA DECS of object in image.")
+    parser.add_argument("-src", "--imgsource", type=str, default="SDSS",
+                        choices=["SDSS", "LSST"], help="Telescope source\
                         of the image. Default is SDSS. This option specifies\
-                        the filename format as [imgsource]cutout_[RA][DEC].fits")
+                        method of ingestion of the FITS image files.")
+    parser.add_argument("-s", "--imgsize", type=int, default=128, help="Size of\
+                        image cutout to analyse")
+
     parser.add_argument("-cc", "--catalogue", type=str, help="Check if any\
                          object in the provided catalogue occludes the\
                          analysed object.")
@@ -63,18 +64,11 @@ if __name__ == '__main__':
     if args.mask and args.catalogue:
         raise ValueError("Can't provide both a star catalogue and precomputed mask!")
 
-    files = helpers.getFiles(args.imgsource, file=args.file,
-                             folder=args.folder)
-    if args.file:
-        print("here")
-        folder = False
-    else:
-        folder = True
+    imageInfos = helpers.getFiles(args.file)
 
-    curfolder, outfolder = helpers.getLocation(file=args.file,
-                                               folder=args.folder)
+    outfolder = helpers.getLocation()
 
-    results = main.calcMorphology(files, outfolder,
+    results = main.calcMorphology(imageInfos, outfolder,
                                   allAsymmetry=args.Aall,
                                   calculateSersic=args.sersic,
                                   savePixelMap=args.savepixmap,
@@ -87,9 +81,10 @@ if __name__ == '__main__':
                                   parallelLibrary=args.parlib,
                                   numberSigmas=args.numsig,
                                   mask=args.mask,
-                                  CAS=args.cas)
+                                  CAS=args.cas,
+                                  npix=args.imgsize)
 
-    print(" ")
-    for i in results:
-        print(i.file)
-        diagnostic.make_figure(i, folder, save=False, show=True)
+    # print(" ")
+    # for i in results:
+    #     print(i.file)
+    #     diagnostic.make_figure(i, folder, save=False, show=True)

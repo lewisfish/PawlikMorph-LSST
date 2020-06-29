@@ -1,11 +1,13 @@
 import csv
+from multiprocessing import Pool
+from pathlib import Path
 import time
 import warnings
-from multiprocessing import Pool
 
 import numpy as np
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
+from astropy.nddata.utils import PartialOverlapError
 try:
     import parsl
     from parsl.app.app import python_app
@@ -32,8 +34,9 @@ from .skyBackground import skybgr
 __all__ = ["calcMorphology"]
 
 
-def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: int,
-                   numberSigmas: float, asymmetry=False, shapeAsymmetry=False,
+def calcMorphology(imageInfos, outfolder, npix: float, filterSize: int,
+                   parallelLibrary: str, cores: int, numberSigmas: float,
+                   asymmetry=False, shapeAsymmetry=False,
                    allAsymmetry=True, calculateSersic=False, savePixelMap=True,
                    saveCleanImage=True, imageSource=None, catalogue=None,
                    largeImage=False, paramsaveFile="parameters.csv",
@@ -45,38 +48,56 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
     Parameters
     ----------
 
-    files : List[str] or List[Pathobjects] or generator object
-        files to iterate over
+    imageInfos : Generator
+        Generator which yields Tuple[str, float, float].
+        This maps to Tuple[filename, RA, DEC]
+
     outfolder : Path object or str
         path to folder where data from analysis will be saved
+
+    npix : float
+        Size to make cutout of larger image
+
     filterSize : int
         Size of mean filter to use on object pixelmap
+
     parallelLibrary : str
         Chooses which parallel library to use
+
     cores: int
         Number of cores/processes to use for multiprocessing.
+
     numberSigmas : float
         The extent of which to mask out stars if a catalogue is provided.
+
     asymmetry : bool, optional
         Default false. If true calculates asymmetry value
+
     shapeAsymmetry : bool, optional
         Default false. If true calculates shape asymmetry value
+
     allAsymmetry : bool, optional
         Default True. If true calculates all asymmetry values.
+
     imageSource : str
         Contains the source of the image, i.e which telescope the image was
         captured by
+
     catalogue : str or Path, optional
         Catalogue of objects nearby object of interest. Is used to mask out
         objects that interfere with object of interest
+
     largeImage : bool, optional
         Default False. If true, a larger image is used to calculate the sky
         background
+
     paramsaveFile: str or Path object
         Name of file where calculated files are to be written
+
     occludedSaveFile: str or Path object
         Name of file where objects that occlude the object of interest are
         saved
+
     CAS : bool
         If Tur, calculates CAS parameters
 
@@ -117,31 +138,31 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
                                   calculateSersic, savePixelMap,
                                   saveCleanImage, imageSource, catalogue,
                                   largeImage, paramsaveFile, occludedSaveFile,
-                                  numberSigmas, mask, CAS])
-        results = pool.map(engine, files)
+                                  numberSigmas, mask, CAS, npix])
+        results = pool.map(engine, imageInfos)
         pool.close()
         pool.join()
     elif parallelLibrary == "parsl":
         parsl.load(config)
         outputs = []
-        for file in files:
-            output = _analyseImageParsl(file, outfolder, filterSize, asymmetry,
+        for imageInfo in imageInfos:
+            output = _analyseImageParsl(imageInfo, outfolder, filterSize, asymmetry,
                                         shapeAsymmetry, allAsymmetry,
                                         calculateSersic, savePixelMap,
                                         saveCleanImage, imageSource, catalogue,
                                         largeImage, paramsaveFile, occludedSaveFile,
-                                        numberSigmas, mask, CAS)
+                                        numberSigmas, mask, CAS, npix)
             outputs.append(output)
         results = [i.result() for i in outputs]
     else:
         results = []
-        for file in files:
-            result = _analyseImage(file, outfolder, filterSize, asymmetry,
+        for imageInfo in imageInfos:
+            result = _analyseImage(imageInfo, outfolder, filterSize, asymmetry,
                                    shapeAsymmetry, allAsymmetry,
                                    calculateSersic, savePixelMap,
                                    saveCleanImage, imageSource, catalogue,
                                    largeImage, paramsaveFile, occludedSaveFile,
-                                   numberSigmas, mask, CAS)
+                                   numberSigmas, mask, CAS, npix)
             results.append(result)
 
     # write out results
@@ -162,12 +183,12 @@ def calcMorphology(files, outfolder, filterSize, parallelLibrary: str, cores: in
 
 
 @python_app
-def _analyseImageParsl(file, outfolder, filterSize, asymmetry,
+def _analyseImageParsl(imageInfo, outfolder, filterSize, asymmetry,
                        shapeAsymmetry, allAsymmetry,
                        calculateSersic, savePixelMap,
                        saveCleanImage, imageSource, catalogue,
                        largeImage, paramsaveFile, occludedSaveFile,
-                       numberSigmas, mask, CAS):
+                       numberSigmas, mask, CAS, npix):
     '''Helper function so that Parsl can run
 
     Parameters
@@ -182,7 +203,7 @@ def _analyseImageParsl(file, outfolder, filterSize, asymmetry,
 
     '''
 
-    return _analyseImage(file, outfolder, filterSize, asymmetry,
+    return _analyseImage(imageInfo, outfolder, filterSize, asymmetry,
                          shapeAsymmetry, allAsymmetry,
                          calculateSersic, savePixelMap,
                          saveCleanImage, imageSource, catalogue,
@@ -190,19 +211,19 @@ def _analyseImageParsl(file, outfolder, filterSize, asymmetry,
                          numberSigmas, mask, CAS)
 
 
-def _analyseImage(file, outfolder, filterSize, asymmetry,
-                  shapeAsymmetry, allAsymmetry,
-                  calculateSersic, savePixelMap,
-                  saveCleanImage, imageSource, catalogue,
-                  largeImage, paramsaveFile, occludedSaveFile, numberSigmas,
-                  mask, CAS):
+def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
+                  shapeAsymmetry: bool, allAsymmetry: bool,
+                  calculateSersic: bool, savePixelMap: bool,
+                  saveCleanImage: bool, imageSource: str, catalogue,
+                  largeImage: bool, paramsaveFile, occludedSaveFile, numberSigmas: float,
+                  mask: np.ndarray, CAS: bool, npix: float):
     '''The main function that calls all the underlying scientific analysis code
 
     Parameters
     ----------
 
-    file : Path object
-        name of file to analyse
+    imageInfo : Tuple[str, float, float]
+        Tuple contains the filename, ra , and dec of image to be analysed
 
     outfolder : str or Path object
         folder where output files are to be saved
@@ -254,6 +275,9 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
         If True, then calculate gini, clumpiness/smoothness, M20, and
         concentration morphology parameters.
 
+    npix : int
+        Size to make the cutout image.
+
     Returns
     -------
 
@@ -262,24 +286,36 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
 
     '''
 
+    file = Path(imageInfo[0])
+    ra = imageInfo[1]
+    dec = imageInfo[2]
     print(file)
+
     if catalogue is None:
         occludedSaveFile = ""
     newResult = Result(file.name, outfolder, occludedSaveFile)
 
     try:
-        imgObj = Image("sdss", filename=file)
-
-        imgObj.setView()
+        imgObj = Image(imageSource, filename=file)
+        if imageSource == "lsst":
+            run = file[3:9]
+            camCol = file[11:12]
+            field = file[13:17]
+            print(run, camCol, field, file)
+            imgObj.setView(ra, dec, run, camCol, field, npix=npix)
+        else:
+            imgObj.setView(ra=ra, dec=dec, npix=npix)
         img = imgObj.getImage()
         header = imgObj.getHeader()
         imgsize = img.shape[0]
-        # img, header, imgsize = checkFile(file)
     except IOError:
         print(f"File {file}, does not exist!")
         return newResult
     except AttributeError as e:
         # Skip file if error is raised
+        return newResult
+    except PartialOverlapError as e:
+        print(f"File {file.name} cannot be cutout at size {npix}!")
         return newResult
 
     # convert image data type to float64 so that later calculations do not
@@ -396,7 +432,6 @@ def _analyseImage(file, outfolder, filterSize, asymmetry,
         newResult.gini = gini(img, mask)
         newResult.S = smoothness(img, mask, newResult.apix, newResult.rmax, newResult.r20, newResult.sky)
         newResult.m20 = m20(img, mask)
-        # pr, meanFluxatPr = calcPetrosianRadius(img, newResult.apix, newResult.fwhms, newResult.theta)
 
     f = time.time()
     timetaken = f - s

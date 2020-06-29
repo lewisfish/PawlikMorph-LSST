@@ -1,5 +1,6 @@
 """
-This package can be extended by subclassing Image and implmenting thre required methods, and _IMAGE_TYPE.
+This package can be extended by subclassing Image and implmenting thre required
+methods, and _IMAGE_TYPE.
 """
 
 from abc import ABC, abstractmethod
@@ -7,7 +8,7 @@ import warnings
 
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from astropy.nddata import Cutout2D, PartialOverlapError
+from astropy.nddata import Cutout2D
 from astropy import wcs
 from astropy import units
 from astropy.utils.exceptions import AstropyWarning
@@ -22,6 +23,9 @@ except ImportError:
 
 
 __all__ = ["Image", "readImage"]
+
+# ignore invalid card warnings when reading FITS files
+warnings.simplefilter('ignore', category=AstropyWarning)
 
 
 def readImage(filename: str, ra: float, dec: float, npix=128, header=False):
@@ -55,7 +59,7 @@ def readImage(filename: str, ra: float, dec: float, npix=128, header=False):
 
     """
 
-    imgObj = Image("sdss", filename=filename)
+    imgObj = Image("SDSS", filename=filename)
     imgObj.setView(ra=ra, dec=dec, npix=npix)
     img = imgObj.getImage()
     if header:
@@ -97,7 +101,7 @@ class Image(ABC):
 
 class sdssImage(Image):
     """Class for SDSS images, as ingested by standard 'method'"""
-    _IMAGE_TYPE = "sdss"
+    _IMAGE_TYPE = "SDSS"
 
     def __init__(self, *args, **kwargs):
         super(sdssImage, self).__init__()
@@ -105,10 +109,7 @@ class sdssImage(Image):
         self.image = None
 
     def setView(self, ra=None, dec=None, npix=128):
-        with warnings.catch_warnings():
-            # ignore invalid card warnings
-            warnings.simplefilter('ignore', category=AstropyWarning)
-            img, self.header = fits.getdata(self.filename, header=True)
+        img, self.header = fits.getdata(self.filename, header=True)
 
         self.largeImage = img.byteswap().newbyteorder()
         if self.largeImage.shape[0] >= npix and ra and dec:
@@ -131,6 +132,7 @@ class sdssImage(Image):
         position = wcs.utils.skycoord_to_pixel(position, wcs=w)
         # There is a bug in Astropy that does not deal with reversed ctype
         # headers in FITS files.
+        # see https://github.com/astropy/astropy/issues/10468
         if w.wcs.ctype[0][0] == "D":
             position = position[::-1]
         stamp = Cutout2D(self.largeImage.data, position=position, size=(npix, npix), wcs=w, mode="strict")
@@ -142,9 +144,14 @@ class lsstImage(Image):
     """Class for SDSS images ingested via LSST dataButler
         some metadata not available
         this includes wcs, and pixel value conversion information (bscale, bzero etc)
+
+        This code is far from the optimal way to read images
+        https://github.com/LSSTScienceCollaborations/StackClub
+        The above source maybe of help for future developer.
+
     """
 
-    _IMAGE_TYPE = "lsst"
+    _IMAGE_TYPE = "LSST"
 
     def __init__(self, *args, **kwargs):
         super(lsstImage, self).__init__()
@@ -153,7 +160,7 @@ class lsstImage(Image):
         self.butler = dafPersist.Butler(kwargs["filename"])
         self.image = None
 
-    def setView(self, ra, dec, run, camCol, field, filter, npix=128):
+    def setView(self, ra, dec, run, camCol, field, filter="r", npix=128):
         self.largeImage = self.butler.get("fpC", run=run, camcol=camCol, field=field, filter=filter)
         self.cutout = self._make_cutout(ra, dec, npix)
 
