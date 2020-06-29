@@ -143,10 +143,10 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
 
     # Make sure that the radius of the object is not greater than the image,
     # as this can cause memory issues
-    if fwhm[0] > 1.414 * npix:
-        fwhm[0] = 1.414 * npix
-    if fwhm[1] > 1.414 * npix:
-        fwhm[1] = 1.414 * npix
+    if fwhms[0] > 1.414 * npix:
+        fwhms[0] = 1.414 * npix
+    if fwhms[1] > 1.414 * npix:
+        fwhms[1] = 1.414 * npix
 
     skyMask, skyRegion = _getSkyRegion(img, distarrvar, fwhms, cenpix, theta)
 
@@ -157,10 +157,10 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
 
         # Make sure that the radius of the object is not greater than the image,
         # as this can cause memory issues
-        if fwhm[0] > 1.414 * npix:
-            fwhm[0] = 1.414 * npix
-        if fwhm[1] > 1.414 * npix:
-            fwhm[1] = 1.414 * npix
+        if fwhms[0] > 1.414 * npix:
+            fwhms[0] = 1.414 * npix
+        if fwhms[1] > 1.414 * npix:
+            fwhms[1] = 1.414 * npix
 
         skyMask, skyRegion = _getSkyRegion(img, distarrvar, fwhms, cenpix, theta)
 
