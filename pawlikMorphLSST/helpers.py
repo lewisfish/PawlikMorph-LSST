@@ -91,7 +91,7 @@ def analyseImage(info: List[Union[float, str]], *args) -> List[Union[float, str]
 
     from .asymmetry import calculateAsymmetries
     from .casgm import calculateCSGM
-    from .image import readImage
+    from .Image import readImage
     from .imageutils import maskstarsSEG
     from .pixmap import pixelmap
     from .skyBackground import skybgr

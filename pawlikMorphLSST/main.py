@@ -17,7 +17,7 @@ from .apertures import aperpixmap
 from .asymmetry import calcA
 from .asymmetry import minapix
 from .engines import multiprocEngine
-from .image import Image
+from .Image import Image
 from .imageutils import maskstarsPSF
 from .imageutils import maskstarsSEG
 from .casgm import gini, m20, concentration, calcR20_R80, smoothness
