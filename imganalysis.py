@@ -26,6 +26,8 @@ if __name__ == '__main__':
 
     parser.add_argument("-f", "--file", type=str, help="File which contains\
                         list of images, and RA DECS of object in image.")
+    parser.add_argument("-fo", "--folder", type=str, default=None, help="Give\
+                        location for where to save output files/images")
     parser.add_argument("-src", "--imgsource", type=str, default="SDSS",
                         choices=["SDSS", "LSST"], help="Telescope source\
                         of the image. Default is SDSS. This option specifies\
@@ -52,7 +54,7 @@ if __name__ == '__main__':
     parser.add_argument("-m", "--mask", action="store_true", help="If this\
                             option is provided then the script expects there\
                             to be precomputed masks in the format\
-                            'pixelmap_' + file.name in the same folder as the\
+                            'pixelmap_' + filename in the same folder as the\
                             images for analysis")
 
     parser.add_argument("-cas", "--cas", action="store_true", help="If this\
@@ -66,7 +68,7 @@ if __name__ == '__main__':
 
     imageInfos = helpers.getFiles(args.file)
 
-    outfolder = helpers.getLocation()
+    outfolder = helpers.getLocation(args.folder)
 
     results = main.calcMorphology(imageInfos, outfolder,
                                   allAsymmetry=args.Aall,

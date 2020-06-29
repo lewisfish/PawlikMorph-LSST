@@ -375,7 +375,10 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
         with warnings.catch_warnings():
             # ignore invalid card warnings
             warnings.simplefilter('ignore', category=AstropyWarning)
-            mask = fits.getdata("pixelmap_" + file.name)
+            filename = file.name
+            filename = "pixelmap_" + filename
+            maskpath = outfolder / filename
+            mask = fits.getdata(maskpath)
         starMask = np.ones_like(img)
 
     img -= newResult.sky

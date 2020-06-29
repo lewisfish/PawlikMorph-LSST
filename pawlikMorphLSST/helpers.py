@@ -62,16 +62,17 @@ def analyseImage(info: List[Union[float, str]], *args) -> List[Union[float, str]
     return [A, As, As90, C, S, gini, m20, filename, ra, dec]
 
 
-def getFiles(file):
+def getFiles(file: str):
     from astropy.table import Table
 
-    '''Function to read csv file, and return a generator object which yields filenames, and ra decs.
+    '''Function to read CSV file, and return a generator object which yields
+       filenames, and RA DECs.
 
     Parameters
     ----------
 
-    file : str, optional
-        string that contains location of file to be analysed
+    file : str
+        String that filename of the CSV file to be read.
 
     Return
     ------
@@ -89,20 +90,26 @@ def getFiles(file):
         yield filename, ra, dec
 
 
-def getLocation():
-    '''Determines the output folder and current folder of files.
+def getLocation(folder):
+    '''Helper function that returns a Path object containg the output folder
 
     Parameters
     ----------
 
+    folder : str
+        Path to a folder for output files.
+
     Returns
     -------
-    outfolder: Tuple(Path, Path)
+    outfolder: Path object
         Path to folder where data from analysis will be saved.
     '''
 
-    curfolder = Path().cwd()
-    outfolder = curfolder / "output"
+    if folder:
+        outfolder = Path(folder)
+    else:
+        curfolder = Path().cwd()
+        outfolder = curfolder / "output"
 
     if not outfolder.exists():
         outfolder.mkdir()
