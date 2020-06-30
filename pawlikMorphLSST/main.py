@@ -192,7 +192,7 @@ def _analyseImageParsl(imageInfo, outfolder, filterSize, asymmetry,
                        calculateSersic, savePixelMap,
                        saveCleanImage, imageSource, catalogue,
                        largeImage, paramsaveFile, occludedSaveFile,
-                       numberSigmas, mask, CAS, npix, largeImgFactor: float):
+                       numberSigmas, mask, CAS, npix, largeImgFactor):
     '''Helper function so that Parsl can run
 
     Parameters
@@ -212,7 +212,7 @@ def _analyseImageParsl(imageInfo, outfolder, filterSize, asymmetry,
                          calculateSersic, savePixelMap,
                          saveCleanImage, imageSource, catalogue,
                          largeImage, paramsaveFile, occludedSaveFile,
-                         numberSigmas, mask, CAS, npix, largeImgFactor: float)
+                         numberSigmas, mask, CAS, npix, largeImgFactor)
 
 
 def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,

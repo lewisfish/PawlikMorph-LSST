@@ -3,7 +3,7 @@ Image
 *****
 
 
-.. automodule:: pawlikMorphLSST.image
+.. automodule:: pawlikMorphLSST.Image
     :members:
     :undoc-members:
     :noindex:

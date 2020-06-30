@@ -1,5 +1,5 @@
 """
-This package can be extended by subclassing Image and implmenting thre required
+This package can be extended by sub classing Image and implementing the required
 methods, and _IMAGE_TYPE.
 """
 
@@ -22,15 +22,15 @@ except ImportError:
     lsst = None
 
 
-__all__ = ["Image", "readImage"]
+__all__ = ["Image", "readImage", "sdssImage", "lsstImage"]
 
 # ignore invalid card warnings when reading FITS files
 warnings.simplefilter('ignore', category=AstropyWarning)
 
 
 def readImage(filename: str, ra: float, dec: float, npix=128, header=False):
-    """ Helper function that can be used to read images directly without need
-        to maunally create Image class.
+    """Helper function that can be used to read images directly without need
+        to manually create Image class.
 
     Parameters
     ----------
@@ -39,7 +39,7 @@ def readImage(filename: str, ra: float, dec: float, npix=128, header=False):
         location of image to read
 
     ra : float
-        RA, right acension of object of interest in image
+        RA, right ascension of object of interest in image
 
     dec : float
         DEC, declination of object of interest in image
@@ -71,6 +71,8 @@ def readImage(filename: str, ra: float, dec: float, npix=128, header=False):
 
 class Image(ABC):
     """Abstract base class for images"""
+    _IMAGE_TYPE = ""
+
     def __init__(self, filename=None):
         super(Image, self).__init__()
 
@@ -86,9 +88,6 @@ class Image(ABC):
     def _make_cutout(self, ra, dec, npix):
         pass
 
-    # TODO
-    # new function that gets the correct implmentationn based upoin user passed string
-    # probably needs exception handling...
     def __new__(cls, _IMAGE_TYPE, **kwargs):
         subclass_map = {subclass._IMAGE_TYPE: subclass for subclass in cls.__subclasses__()}
         try:
@@ -109,6 +108,26 @@ class sdssImage(Image):
         self.image = None
 
     def setView(self, ra=None, dec=None, npix=128):
+        """ Get the correct view in larger image, and create the cutout on the
+            correct view
+
+        Parameters
+        ----------
+
+        ra: float
+            RA position
+
+        dec: float
+            DEC position
+
+        npix : int
+            Size to make cutout
+
+        Returns
+        -------
+
+        """
+
         img, self.header = fits.getdata(self.filename, header=True)
 
         self.largeImage = img.byteswap().newbyteorder()
@@ -117,13 +136,39 @@ class sdssImage(Image):
         else:
             self.cutout = self.largeImage
 
-    def getImage(self):
+    def getImage(self) -> np.ndarray:
+        """ Returns the cutout image
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+
+        self.image: np.ndarray, float (2D)
+            The cutout image centered on the view provided in setview.
+
+        """
+
         self.image = self.cutout
         self.image = self.image.astype(np.float64)
 
         return self.image
 
-    def getHeader(self):
+    def getHeader(self) -> fits.Header:
+        """ Returns the image header
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+
+        self.header: astropy.io.fits.Header
+            The header for the cutout.
+
+        """
+
         return self.header
 
     def _make_cutout(self, ra, dec, npix):
@@ -141,12 +186,14 @@ class sdssImage(Image):
 
 
 class lsstImage(Image):
-    """Class for SDSS images ingested via LSST dataButler
-        some metadata not available
-        this includes wcs, and pixel value conversion information (bscale, bzero etc)
+    """Class for SDSS images ingested via LSST dataButler.
 
-        This code is far from the optimal way to read images
+        Some metadata not available, this includes wcs, and pixel value
+        conversion information (bscale, bzero etc).
+
+        This code is far from the optimal way to read images.
         https://github.com/LSSTScienceCollaborations/StackClub
+
         The above source maybe of help for future developer.
 
     """
