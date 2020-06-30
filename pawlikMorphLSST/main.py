@@ -34,7 +34,7 @@ from .skyBackground import skybgr
 __all__ = ["calcMorphology"]
 
 
-def calcMorphology(imageInfos, outfolder, npix: float, filterSize: int,
+def calcMorphology(imageInfos, outfolder, largeImgFactor: float, npix: float, filterSize: int,
                    parallelLibrary: str, cores: int, numberSigmas: float,
                    asymmetry=False, shapeAsymmetry=False,
                    allAsymmetry=True, calculateSersic=False, savePixelMap=True,
@@ -54,6 +54,10 @@ def calcMorphology(imageInfos, outfolder, npix: float, filterSize: int,
 
     outfolder : Path object or str
         path to folder where data from analysis will be saved
+
+    largeImgFactor: float
+        Factor to multiply cutout size by to create larger image for better
+        skybackground estimation.
 
     npix : float
         Size to make cutout of larger image
@@ -138,7 +142,7 @@ def calcMorphology(imageInfos, outfolder, npix: float, filterSize: int,
                                   calculateSersic, savePixelMap,
                                   saveCleanImage, imageSource, catalogue,
                                   largeImage, paramsaveFile, occludedSaveFile,
-                                  numberSigmas, mask, CAS, npix])
+                                  numberSigmas, mask, CAS, npix, largeImgFactor])
         results = pool.map(engine, imageInfos)
         pool.close()
         pool.join()
@@ -151,7 +155,7 @@ def calcMorphology(imageInfos, outfolder, npix: float, filterSize: int,
                                         calculateSersic, savePixelMap,
                                         saveCleanImage, imageSource, catalogue,
                                         largeImage, paramsaveFile, occludedSaveFile,
-                                        numberSigmas, mask, CAS, npix)
+                                        numberSigmas, mask, CAS, npix, largeImgFactor)
             outputs.append(output)
         results = [i.result() for i in outputs]
     else:
@@ -162,7 +166,7 @@ def calcMorphology(imageInfos, outfolder, npix: float, filterSize: int,
                                    calculateSersic, savePixelMap,
                                    saveCleanImage, imageSource, catalogue,
                                    largeImage, paramsaveFile, occludedSaveFile,
-                                   numberSigmas, mask, CAS, npix)
+                                   numberSigmas, mask, CAS, npix, largeImgFactor)
             results.append(result)
 
     # write out results
@@ -188,7 +192,7 @@ def _analyseImageParsl(imageInfo, outfolder, filterSize, asymmetry,
                        calculateSersic, savePixelMap,
                        saveCleanImage, imageSource, catalogue,
                        largeImage, paramsaveFile, occludedSaveFile,
-                       numberSigmas, mask, CAS, npix):
+                       numberSigmas, mask, CAS, npix, largeImgFactor: float):
     '''Helper function so that Parsl can run
 
     Parameters
@@ -208,7 +212,7 @@ def _analyseImageParsl(imageInfo, outfolder, filterSize, asymmetry,
                          calculateSersic, savePixelMap,
                          saveCleanImage, imageSource, catalogue,
                          largeImage, paramsaveFile, occludedSaveFile,
-                         numberSigmas, mask, CAS)
+                         numberSigmas, mask, CAS, npix, largeImgFactor: float)
 
 
 def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
@@ -216,7 +220,7 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
                   calculateSersic: bool, savePixelMap: bool,
                   saveCleanImage: bool, imageSource: str, catalogue,
                   largeImage: bool, paramsaveFile, occludedSaveFile, numberSigmas: float,
-                  mask: np.ndarray, CAS: bool, npix: float):
+                  mask: np.ndarray, CAS: bool, npix: float, largeImgFactor: float):
     '''The main function that calls all the underlying scientific analysis code
 
     Parameters
@@ -278,6 +282,9 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
     npix : int
         Size to make the cutout image.
 
+    largeImgFactor : int
+        Factor to multiply cutout image size by to create larger image.
+
     Returns
     -------
 
@@ -303,10 +310,21 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
             field = file[13:17]
             print(run, camCol, field, file)
             imgObj.setView(ra, dec, run, camCol, field, npix=npix)
+            img = imgObj.getImage()
+            header = imgObj.getHeader()
+            if largeImage:
+                imgObj.setView(ra=ra, dec=dec, npix=npix * largeImgFactor)
+                imgLarge = imgObj.getImage()
         else:
             imgObj.setView(ra=ra, dec=dec, npix=npix)
-        img = imgObj.getImage()
-        header = imgObj.getHeader()
+            img = imgObj.getImage()
+            header = imgObj.getHeader()
+            if largeImage:
+                imgObj.setView(ra=ra, dec=dec, npix=npix * largeImgFactor)
+                imgLarge = imgObj.getImage()
+        if not largeImage:
+            imgLarge = None
+
         imgsize = img.shape[0]
     except IOError:
         print(f"File {file}, does not exist!")
@@ -326,7 +344,7 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
 
     # get sky background value and error
     try:
-        newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(img, file=file, largeImage=largeImage, imageSource=imageSource)
+        newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(img, file=file, largeImage=imgLarge, imageSource=imageSource)
     except AttributeError:
         # TODO can fail silently if some other attribute error is raised!
         filename = file.name
@@ -355,12 +373,16 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
             except AttributeError:
                 return newResult
 
-            newResult.star_flag, newResult.objList = objectOccluded(tmpmask, file.name,
+            newResult.star_flag, newResult.objList = objectOccluded(tmpmask, (ra, dec),
                                                                     catalogue, header)
 
             # remove star using images PSF to estimate stars radius
-            starMask = maskstarsPSF(img, newResult.objList, header, newResult.sky, numberSigmas, adaptive=False)#, sky_err=newResult.sky_err)
-            newResult.starMask = starMask
+            try:
+                starMask = maskstarsPSF(img, newResult.objList, header, newResult.sky, numberSigmas, adaptive=False)#, sky_err=newResult.sky_err)
+                newResult.starMask = starMask
+            except KeyError as e:
+                print(e, ", so not using star catalogue to mask stars!")
+                starMask = np.ones_like(img)
             mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
         else:
             try:

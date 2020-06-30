@@ -20,9 +20,10 @@ if __name__ == '__main__':
                         help="Save cleaned image.")
 
     parser.add_argument("-li", "--largeimage", action="store_true",
-                        help="Use large cutout for sky background estimation.\
-                        Expects the name of the large file to be\
-                        [imageSource]lcutout_[RA][DEC].fits")
+                        help="Use large cutout for sky background estimation.")
+    parser.add_argument("lif", "--largeimagefactor", action="store_true",
+                        help="Factor to scale cutout image size (--imgsize) so\
+                        that a better background value can be estimated")
 
     parser.add_argument("-f", "--file", type=str, help="File which contains\
                         list of images, and RA DECS of object in image.")

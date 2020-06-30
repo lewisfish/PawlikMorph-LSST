@@ -281,6 +281,7 @@ def make_figure(result: Type[Result], folder: bool, save=False, show=False) -> N
 
     result : Type[Result]
         Data class container of calculated results.
+        Must have clean image and pixelmap in order to run this function.
 
     folder : bool
         If True then adjusts path to read file from.

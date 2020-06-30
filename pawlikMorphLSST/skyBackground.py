@@ -33,7 +33,7 @@ class _SkyError(_Error):
 
 
 # TODO make file optional
-def skybgr(img: np.ndarray, file=None, largeImage=False,
+def skybgr(img: np.ndarray, largeImage: np.ndarray, file=None,
            imageSource=None) -> Tuple[float, float, List[float], float]:
     '''Helper function for calculating skybgr
 
@@ -46,9 +46,8 @@ def skybgr(img: np.ndarray, file=None, largeImage=False,
     file: Path object, optional
         Path to image
 
-    largeImage : bool, optional
-        If true algorithm uses larger image to estimate sky background.
-        If False uses provided image.
+    largeImage : np.ndarray
+        If not None, algorithm uses larger image to estimate sky background.
 
     imageSource : str, optional
         Telescope source of the image. Default is SDSS
@@ -73,26 +72,10 @@ def skybgr(img: np.ndarray, file=None, largeImage=False,
 
     imgsize = img.shape[0]
 
-    if largeImage:
-        filename = file.name
-        if imageSource != "none":
-            filename = filename.replace(imageSource, imageSource+"l", 1)
-        else:
-            filename = filename.replace("cutout", "cutoutl", 1)
-
-        infile = file.parents[0] / _Path(filename)
-        try:
-            with warnings.catch_warnings():
-                # ignore invalid card warnings
-                warnings.simplefilter('ignore', category=AstropyWarning)
-                largeimg = fits.getdata(infile)
-            # clean image so that skybgr not over estimated
-            largeimg = maskstarsSEG(largeimg)
-            sky, sky_err, fwhms, theta = _calcSkybgr(largeimg, largeimg.shape[0], img)
-        except IOError:
-            print(f"Large image of {filename}, does not exist!")
-            sky, sky_err, fwhms, theta = _calcSkybgr(img, imgsize)
-
+    if largeImage is not None:
+        # clean image so that skybgr not over estimated
+        largeImage = maskstarsSEG(largeImage)
+        sky, sky_err, fwhms, theta = _calcSkybgr(largeImage, largeImage.shape[0], img)
     else:
         sky, sky_err, fwhms, theta = _calcSkybgr(img, imgsize)
 
