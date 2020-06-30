@@ -4,6 +4,14 @@ pawlikMorphLSST package
 Submodules
 ----------
 
+pawlikMorphLSST.Image module
+----------------------------
+
+.. automodule:: pawlikMorphLSST.Image
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 pawlikMorphLSST.apertures module
 --------------------------------
 
@@ -32,6 +40,14 @@ pawlikMorphLSST.diagnostic module
 ---------------------------------
 
 .. automodule:: pawlikMorphLSST.diagnostic
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pawlikMorphLSST.engines module
+------------------------------
+
+.. automodule:: pawlikMorphLSST.engines
    :members:
    :undoc-members:
    :show-inheritance:

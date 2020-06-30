@@ -39,8 +39,8 @@ User Documentation
     helpers.rst
     diagnostic.rst
 
-
 Modules (API) 
 ==================
 
 * :ref:`modindex`
+* :ref:`genindex`
