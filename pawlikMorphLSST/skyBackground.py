@@ -33,7 +33,7 @@ class _SkyError(_Error):
 
 
 # TODO make file optional
-def skybgr(img: np.ndarray, largeImage: np.ndarray, file=None,
+def skybgr(img: np.ndarray, largeImage=None, file=None,
            imageSource=None) -> Tuple[float, float, List[float], float]:
     '''Helper function for calculating skybgr
 
@@ -72,12 +72,12 @@ def skybgr(img: np.ndarray, largeImage: np.ndarray, file=None,
 
     imgsize = img.shape[0]
 
-    if largeImage is not None:
+    if largeImage is None:
+        sky, sky_err, fwhms, theta = _calcSkybgr(img, imgsize)
+    else:
         # clean image so that skybgr not over estimated
         largeImage = maskstarsSEG(largeImage)
         sky, sky_err, fwhms, theta = _calcSkybgr(largeImage, largeImage.shape[0], img)
-    else:
-        sky, sky_err, fwhms, theta = _calcSkybgr(img, imgsize)
 
     return sky, sky_err, fwhms, theta
 
