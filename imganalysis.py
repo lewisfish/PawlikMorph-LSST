@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     parser.add_argument("-li", "--largeimage", action="store_true",
                         help="Use large cutout for sky background estimation.")
-    parser.add_argument("lif", "--largeimagefactor", action="store_true",
+    parser.add_argument("-lif", "--largeimagefactor", action="store_true",
                         help="Factor to scale cutout image size (--imgsize) so\
                         that a better background value can be estimated")
 
@@ -85,9 +85,11 @@ if __name__ == '__main__':
                                   numberSigmas=args.numsig,
                                   mask=args.mask,
                                   CAS=args.cas,
-                                  npix=args.imgsize)
+                                  npix=args.imgsize,
+                                  largeImgFactor=args.largeimagefactor)
 
-    # print(" ")
-    # for i in results:
-    #     print(i.file)
-    #     diagnostic.make_figure(i, folder, save=False, show=True)
+    if args.savecleanimg and args.savepixmap:
+        print(" ")
+        for i in results:
+            print(i.file)
+            diagnostic.make_figure(i, False, save=False, show=True)

@@ -1,11 +1,7 @@
 from pathlib import Path
-import sys
 from typing import List, Union
-import warnings
 
-from astropy.io import fits
 from astropy.nddata import PartialOverlapError
-from astropy.utils.exceptions import AstropyWarning
 
 __all__ = ["getLocation", "analyseImage"]
 
