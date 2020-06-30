@@ -17,8 +17,7 @@ def objectOccluded(mask: np.ndarray, radec: Tuple[float, float],
                    catalogue: str, header, galaxy=False, cosmicray=False,
                    unknown=False) -> Tuple[bool, List[float]]:
 
-    '''Function gets list of objects near the object of interest, and
-       determines if that objects light occludeds the object of interest light.
+    r""" Function gets list of objects near the object of interest, and determines if that objects light occludeds the object of interest light.
 
     Parameters
     ----------
@@ -50,7 +49,7 @@ def objectOccluded(mask: np.ndarray, radec: Tuple[float, float],
     Tuple[bool, List[float]]
         Returns true alongside list of objects that occlude object mask.
         Otherwise returns false and an empty list
-    '''
+    """
 
     ra, dec = radec
 
