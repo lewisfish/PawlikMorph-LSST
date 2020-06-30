@@ -151,8 +151,8 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
         raise _SkyError(f"Error! Sky region too small {skyMask.count()}")
     # Flag the measurement if sky region smaller than 20000 pixels
     # (Simard et al. 2011)
-    if skyMask.count() < 20000:
-        print(f"Warning! skyregion smaller than optimal {skyMask.count()}")
+    # if skyMask.count() < 20000:
+    #     print(f"Warning! skyregion smaller than optimal {skyMask.count()}")
 
     mean_sky = np.ma.mean(skyMask)
     median_sky = np.ma.median(skyMask)
