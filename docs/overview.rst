@@ -2,7 +2,7 @@
 Overview
 ********
 
-For a given image (or folder of images), pawlikMorph-LSST will calculate a segmentation map of the galaxy of interest, subtract the sky background, then analyse the image for the following statistics:
+For a given image, pawlikMorph-LSST will calculate a segmentation map of the galaxy of interest, subtract the sky background, then analyse the image for the following statistics:
 
 * Gini index
 * M20

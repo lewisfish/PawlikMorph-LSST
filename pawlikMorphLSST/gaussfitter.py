@@ -86,13 +86,15 @@ def moments(data: np.ndarray, angle_guess=90.0) -> List[float]:
 
 def twodgaussian(xydata, offset: float, amplitude: float, xo: float, yo: float,
                  sigma_x: float, sigma_y: float, theta: float):
-    """
-    Returns a 2d gaussian function of the form:
-    x' = np.cos(rota) * x - np.sin(rota) * y
-    y' = np.sin(rota) * x + np.cos(rota) * y
-    (rota should be in degrees)
-    g = b + a * np.exp ( - ( ((x-center_x)/width_x)**2 +
-    ((y-center_y)/width_y)**2 ) / 2 )
+    r"""Returns a 2d gaussian function of the form:
+
+    .. math:: x' = x \cos(\theta) - y \sin(\theta)
+
+    .. math:: y' = x \sin(\theta)+ y \cos(\theta)
+
+    :math:`\theta` should be in degrees
+
+    .. math:: g = b + a exp^{\left(-\frac{((x-x_0)/x_w)^2 + ((y-y_0)/y_w)^2 }{2} \right)}
 
     inpars = [b,a,center_x,center_y,width_x,width_y,rota]
              (b is background height, a is peak amplitude)
@@ -119,8 +121,8 @@ def twodgaussian(xydata, offset: float, amplitude: float, xo: float, yo: float,
 
     Returns
     -------
-    g.ravel() : List[float]
-        1D array of computed Gaussian distribution. Array is 1D so that
+    g : List[float]
+        List of computed Gaussian distribution. Array is 1D so that
         function is compatible with Scpiy's curve_fit.
         Parameters are: Height/offset, amplitude, xo, yo, sigx, sigy, theta
 
@@ -142,5 +144,5 @@ def twodgaussian(xydata, offset: float, amplitude: float, xo: float, yo: float,
 
     g = height + amplitude * np.exp(-(((rcen_x-xp)/width_x)**2 +
                                     ((rcen_y-yp)/width_y)**2)/2.)
-
-    return g.ravel()
+    g = g.ravel()
+    return g
