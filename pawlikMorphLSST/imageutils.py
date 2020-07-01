@@ -250,7 +250,7 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
             masks = aps.to_mask(method="subpixel")
             aperMask = np.where(masks.to_image(image.shape) > 0., 1., 0.)
             mask = np.logical_or(mask, aperMask)
-            tmp = image*~mask + ((skyCount+1000)*mask)  # not used??
+            # tmp = image*~mask + ((skyCount+1000)*mask)  # not used??
 
     # invert calculated mask so that future calculations work
     if len(objs) > 0:

@@ -1,13 +1,9 @@
-from pathlib import Path as _Path
 from typing import List, Tuple
-import warnings
 
 import numpy as np
 from astropy.convolution import Gaussian2DKernel
-from astropy.io import fits
 from astropy.modeling import models, fitting
 from astropy.stats import sigma_clipped_stats, gaussian_fwhm_to_sigma
-from astropy.utils.exceptions import AstropyWarning
 from photutils import aperture, detect_sources, detect_threshold
 from scipy import optimize
 

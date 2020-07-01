@@ -183,7 +183,6 @@ def pixelmap(image: np.ndarray, threshold: float, filterSize: int,
 
     # start list with central pixel
     pixels = [cenpix]
-    pixelsleft = True
     # order in which to view 8 connected pixels
     xvec = [1, 0, -1, -1, 0, 0, 1, 1]
     yvec = [0, -1, 0, 0, 1, 1, 0, 0]
@@ -191,7 +190,7 @@ def pixelmap(image: np.ndarray, threshold: float, filterSize: int,
     # loop over pixels in pixel array
     # check 8 connected pixels and add to array if above threshold
     # remove pixel from array when its been operated on
-    while pixelsleft:
+    while True:
         x, y = pixels.pop(0)
         xcur = x
         ycur = y
@@ -204,7 +203,6 @@ def pixelmap(image: np.ndarray, threshold: float, filterSize: int,
                 objectMask[xcur, ycur] = 1
                 pixels.append([xcur, ycur])
         if len(pixels) == 0:
-            pixelsleft = False
             break
 
     # resize binary image to original size
