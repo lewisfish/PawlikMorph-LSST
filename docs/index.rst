@@ -20,6 +20,7 @@ Getting Started
     install.rst
     overview.rst
     getting_started.rst
+    lsstsupport.rst
 
 User Documentation
 ==================
