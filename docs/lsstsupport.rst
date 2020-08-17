@@ -3,6 +3,11 @@ LSST Support
 ************
 
 In order to be able ingest images via the LSST pipeline you must first install the LSST pipeline.
+
+**Note LSST support is currently experimental.**
+The LSST API is currently not finalised so using the latest version of the LSST pipeline may break the code. 
+If in doubt try and use version 19, the last version this code was tested against.
+
 To install the LSST pipeline please refer to `<https://pipelines.lsst.io/#installation>`_. We recommend using `Docker <https://pipelines.lsst.io/install/docker.html>`_ as the installation method for the LSST pipeline.
 The following instructions assume that Docker has been used to install the LSST pipeline.
 
