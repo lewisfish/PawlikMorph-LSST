@@ -304,11 +304,10 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
 
     try:
         imgObj = Image(imageSource, filename=file)
-        if imageSource == "lsst":
-            run = file[3:9]
-            camCol = file[11:12]
-            field = file[13:17]
-            print(run, camCol, field, file)
+        if imageSource == "LSST":
+            camCol = imageInfo[3]
+            run = imageInfo[4]
+            field = imageInfo[5]
             imgObj.setView(ra, dec, run, camCol, field, npix=npix)
             img = imgObj.getImage()
             header = imgObj.getHeader()

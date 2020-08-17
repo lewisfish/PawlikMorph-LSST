@@ -18,6 +18,7 @@ try:
     import lsst.daf.persistence as dafPersist
     import lsst.afw.geom as afwGeom
     import lsst.afw.image as afwImage
+    lsst = True
 except ImportError:
     lsst = None
 
@@ -190,6 +191,7 @@ class lsstImage(Image):
 
         Some metadata not available, this includes wcs, and pixel value
         conversion information (bscale, bzero etc).
+        Shouldn't really recreate butler on each image call...
 
         This code is far from the optimal way to read images.
         https://github.com/LSSTScienceCollaborations/StackClub
@@ -204,7 +206,7 @@ class lsstImage(Image):
         super(lsstImage, self).__init__()
         if lsst is None:
             raise ImportError("LSST stack not installed!")
-        self.butler = dafPersist.Butler(kwargs["filename"])
+        self.butler = dafPersist.Butler(str(kwargs["filename"]))
         self.image = None
 
     def setView(self, ra, dec, run, camCol, field, filter="r", npix=128):
@@ -220,6 +222,7 @@ class lsstImage(Image):
         return self.header
 
     def _make_cutout(self, ra, dec, npix):
+        # Point2I, Extent2I, and Box2I are going to be deprecated in a future version...
         lsstwcs = self.largeImage.getWcs()
         radec = afwGeom.SpherePoint(ra, dec, afwGeom.degrees)
         x, y = afwGeom.PointI(lsstwcs.skyToPixel(radec))

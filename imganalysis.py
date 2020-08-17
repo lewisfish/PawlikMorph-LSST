@@ -67,7 +67,10 @@ if __name__ == '__main__':
     if args.mask and args.catalogue:
         raise ValueError("Can't provide both a star catalogue and precomputed mask!")
 
-    imageInfos = helpers.getFiles(args.file)
+    if args.imgsource == "SDSS":
+        imageInfos = helpers.getFiles(args.file)
+    elif args.imgsource == "LSST":
+        imageInfos = helpers.getFilesLSST(args.file, "../data/")
 
     outfolder = helpers.getLocation(args.folder)
 

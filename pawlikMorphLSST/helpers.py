@@ -3,7 +3,7 @@ from typing import List, Union
 
 from astropy.nddata import PartialOverlapError
 
-__all__ = ["getLocation", "analyseImage"]
+__all__ = ["getLocation", "analyseImage", "getFiles", "getFilesLSST"]
 
 
 def analyseImage(info: List[Union[float, str]], *args) -> List[Union[float, str]]:
@@ -84,6 +84,37 @@ def getFiles(file: str):
 
     for filename, ra, dec in zip(filenames, ras, decs):
         yield filename, ra, dec
+
+
+def getFilesLSST(file: str, folder: str):
+    from astropy.table import Table
+
+    '''Function to read CSV file, and return a generator object which yields
+       filenames, and RA DECs, camcol, run, and field.
+
+    Parameters
+    ----------
+
+    file : str
+        String that filename of the CSV file to be read.
+
+    Return
+    ------
+
+    Returns a generator which iterates over the image files.
+
+    '''
+
+    data = Table.read(file)
+
+    ras = data["ra"]
+    decs = data["dec"]
+    camCols = data["camCol"]
+    runs = data["run"]
+    fields = data["field"]
+
+    for ra, dec, camCol, run, field in zip(ras, decs, camCols, runs, fields):
+        yield folder, ra, dec, camCol, run, field
 
 
 def getLocation(folder):
