@@ -11,8 +11,8 @@ python imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sc
 
 
  - -h, shows the help screen
- - -f FILE, Path to a single image for analysis
- - -fo FOLDER, Path to folder of images for analysis
+ - -f FILE, File which contains list of images, and RA DECS of object in image
+ - -fo FOLDER, Path to folder to save script outputs
  - -A, runs the asymmetry calculation
  - -As, Runs the shape asymmetry calculation
  - -Aall, Runs all the implmented asymmetry calculations
