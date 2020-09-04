@@ -7,6 +7,8 @@ Replicates the ability to prepare images, generate object binary masks and calcu
 
 ## Usage
 
+See the [Docs](https://pawlikmorph-lsst.readthedocs.io/en/latest/) for full information.
+
 python imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sci] [-li] [-src {sdss,hsc}] [-cc CATALOGUE] [-sersic] [-fs {1, 3, 5, 7, 9, 11, 13, 15}]
 
 
