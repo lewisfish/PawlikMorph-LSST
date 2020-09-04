@@ -55,8 +55,6 @@ First clone this repo. Then either use pip or conda to install dependencies:
   - [x] Calculate Asymmetry
   - [x] Calculate shape asymmetry
   - [x] Analyse HSC data
-  - [ ] Analyse LSST images -> partially done
-  - [ ] Run on LSST's data centre in Edinburgh
-  - [ ] Make it all fast
-  - [ ] Notebook integration -> partially done
-  - [ ] Documentation -> partially done
+  - [x] Make it all fast
+  - [x] Notebook integration
+  - [x] Documentation
