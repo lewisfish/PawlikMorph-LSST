@@ -46,5 +46,18 @@ If everything was correctly installed then running
 
 Should output the help for the imganalysis script.
 
-
 For more help on Docker `<https://docs.docker.com/get-started/>`_.
+
+*************************
+Using the LSST databutler
+*************************
+
+Currently this code is only setup for reading in SDSS images using the LSST pipeline. The SDSS images must be available on the machine the script is running on. The folder structure for the SDSS images that the LSST pipeline expects is the same as found in `<http://das.sdss.org/imaging/>`_, i.e . /path/to/data/756/41/corr/1/fpC-000756-r1-0234.fits etc. Where 756 must be the run number, 41 is the rerun number (must be greater than 40), and 1 is the camcol number.
+
+The script expects a csv file passed via the --file flag with the following columns: ra, dec, run, rerun, camCol, and field.
+The only other difference for the user along with the different csv file, is to pass the LSST option to the --imgsource flag.
+Below is an example command for using the LSST pipeline:
+
+.. code-block:: console
+    
+    $ python imganalysis.py --file sdssimgsinfo.csv --imgsource LSST -Aall -sersic -cas -n 4
