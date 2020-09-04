@@ -45,11 +45,13 @@ The script has several possible options:
 
 Example::
 
-    python imganalysis.py -f images.csv -fo output/ -Aall -spm -sci -src sdss -li -sersic -cas -par multi -n 4
+    python imganalysis.py -f images.csv -fo output/ -Aall -spm -sci -src sdss -sersic -cas -n 4
 
 The above command will run the code over all the images in the file images.csv, and calculate all the asymmetry statistics, alongside the CAS and Sersic statistics.
 This will generate a folder output where pixelmaps of the object, cleaned images, and calculated parameters (parameters.csv) are stored.
 The command will also run the code in parallel over 4 processors.
+The input csv file (images.csv in this example) should have the following columns: filename, ra, dec
+The filename column should contain the path to the image relative to the directory you are runnning the script in. RA, and DEC shoul be the location of the galaxy/object to be analysed.
 
 If imganalysis.py is run with the -spm and -sci options, then it will automatically plot the various outputs using matplotlib at the end of a run. This can be useful to asses by eye the various setting used in that run for generating the segmentation map, and size of star to mask out.
 
