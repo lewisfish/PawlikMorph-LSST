@@ -1,3 +1,4 @@
+setuptools==57.5.0
 alabaster==0.7.12
 anyjson==0.3.3
 argon2-cffi==19.1.0
