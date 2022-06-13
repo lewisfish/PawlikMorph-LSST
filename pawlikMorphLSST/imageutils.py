@@ -67,7 +67,7 @@ def maskstarsSEG(image: np.ndarray) -> np.ndarray:
     sigma = 3.0 * gaussian_fwhm_to_sigma
     kernel = Gaussian2DKernel(sigma, x_size=3, y_size=3)
     kernel.normalize()
-    segm = detect_sources(image, threshold, npixels=8, filter_kernel=kernel)
+    segm = detect_sources(image, threshold, npixels=8, kernel=kernel)
 
     # if no sources return
     if segm is None:
@@ -84,7 +84,7 @@ def maskstarsSEG(image: np.ndarray) -> np.ndarray:
     for i in stars:
         masked = segm.segments[i].data_ma
         masked = np.where(masked > 0., 1., 0.) * np.random.normal(mean, std, size=segm.segments[i].data.shape)
-        imageClean[segm.segments[i].bbox.slices] = masked
+        imageClean[segm.segments[i].slices] = masked
 
         imageClean = np.where(imageClean == 0, image, imageClean)
 
