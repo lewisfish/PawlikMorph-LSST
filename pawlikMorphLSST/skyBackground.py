@@ -108,7 +108,7 @@ def _calcSkybgr(img: np.ndarray, imgsize: int, smallimg=None) -> Tuple[float, fl
     kernel = Gaussian2DKernel(sigma, x_size=3, y_size=3)
     kernel.normalize()
     threshold = detect_threshold(img, 1.5)
-    segm = detect_sources(img, threshold, npixels=8, kernel=kernel)
+    segm = detect_sources(img, threshold, npixels=8, filter_kernel=kernel)
 
     if segm is None:
         raise _SkyError("No object in image")

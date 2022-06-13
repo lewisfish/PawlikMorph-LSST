@@ -67,7 +67,7 @@ def maskstarsSEG(image: np.ndarray) -> np.ndarray:
     sigma = 3.0 * gaussian_fwhm_to_sigma
     kernel = Gaussian2DKernel(sigma, x_size=3, y_size=3)
     kernel.normalize()
-    segm = detect_sources(image, threshold, npixels=8, kernel=kernel)
+    segm = detect_sources(image, threshold, npixels=8, filter_kernel=kernel)
 
     # if no sources return
     if segm is None:

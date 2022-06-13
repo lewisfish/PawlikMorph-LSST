@@ -9,7 +9,12 @@ Replicates the ability to prepare images, generate object binary masks and calcu
 
 See the [Docs](https://pawlikmorph-lsst.readthedocs.io/en/latest/) for full information.
 
-python imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sci] [-li] [-src {sdss,hsc}] [-cc CATALOGUE] [-sersic] [-fs {1, 3, 5, 7, 9, 11, 13, 15}]
+python imganalysis.py [-h] [-A] [-As] [-Aall] [-sersic] [-spm] [-sci] [-li]
+                      [-lif] [-f FILE] [-fo FOLDER] [-src {SDSS,LSST}]
+                      [-s IMGSIZE] [-cc CATALOGUE] [-ns NUMSIG]
+                      [-fs {1,3,5,7,9,11,13,15}] [-par {multi,parsl,none}]
+                      [-n CORES] [-m] [-cas]
+
 
 
  - -h, shows the help screen
@@ -18,6 +23,7 @@ python imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sc
  - -A, runs the asymmetry calculation
  - -As, Runs the shape asymmetry calculation
  - -Aall, Runs all the implmented asymmetry calculations
+ - -cas, Calculate CAS parameters
  - -spm, Save calculated binary pixelmaps
  - -sci, Save cleaned image
  - -li, Use larger image cutouts to estimate sky background
@@ -25,10 +31,14 @@ python imganalysis.py [-h] [-f FILE] [-fo FOLDER] [-A] [-As] [-Aall] [-spm] [-sc
  - -cc, Check if any object in the provided catalogue occludes the analysed object
  - -sersic, Calculate Sersic profile
  - -fs, Size of kernel for mean filter
+ - -ns, Radial extent to which mask out stars if a catalogue is provided
+ - -par, Choose which library to use to parallelise script, {multi, parsl, none}
+ - -n, Number of cores to use
+ - -m, use precomputed masks
  
  Example
-  - ./imganalysis.py -fo sample/data -Aall -spm -sci -src sdss -li -sersic
-  - This will generate a folder sample/output where pixelmaps of the object, clean images, and calculated parameters are stored.
+  - python imganalysis.py --file images.csv -fo sample -Aall -sersic -sci -spm -par parsl -n 8 -cas
+  - This will read images from images.csv, generate a folder sample/output where pixelmaps of the object, clean images, and calculated parameters are stored.
 
 ## Installation
 
@@ -45,18 +55,10 @@ First clone this repo. Then either use pip or conda to install dependencies:
  - Astropy 3.0.3+
  - Scikit-image 0.14.0+
  - Pandas 0.25.3+
- - photutils 0.7.1+
+ - photutils 0.7.1
  - scipy 1.3.2+
  - parsl 0.9.0+
 
  
  If diagnostic.py is used 
  - matplotlib
- 
- ## TODO
-  - [x] Calculate Asymmetry
-  - [x] Calculate shape asymmetry
-  - [x] Analyse HSC data
-  - [x] Make it all fast
-  - [x] Notebook integration
-  - [x] Documentation

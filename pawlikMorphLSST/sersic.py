@@ -101,6 +101,7 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float],
     aMin = 0
     aMax = 0
     while True:
+        aCurrent = max(0.001, aCurrent)  # to avoid value error in EllipticalAperture constuctor
         apertureCurrent = EllipticalAperture(centroid, aCurrent, b, theta)
         currentSum = apertureCurrent.do_photometry(imageCopy, method="exact")[0][0]
         currentFraction = currentSum / totalSum

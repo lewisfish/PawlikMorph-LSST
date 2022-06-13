@@ -10,7 +10,7 @@ dependencies:
   - astropy
   - scipy
   - pandas
-  - photutils
+  - photutils==0.7.1
   - parsl
 prefix: /home/lewis/anaconda3/envs/pawlikMorph-lsst
 
