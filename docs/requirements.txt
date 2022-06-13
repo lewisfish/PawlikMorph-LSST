@@ -1,6 +1,5 @@
 setuptools==49.2.1
 alabaster==0.7.12
-anyjson==0.3.3
 argon2-cffi==19.1.0
 arrow==0.15.5
 asdf==2.5.1
