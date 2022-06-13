@@ -118,7 +118,7 @@ def fitSersic(image: np.ndarray, centroid: List[float], fwhms: List[float],
     a_in = r_eff - 0.5
     a_out = r_eff + 0.5
     b_out = a_out - (1. * ellip)
-    ellip_annulus = EllipticalAnnulus(centroid, a_in, a_out, b_out, theta)
+    ellip_annulus = EllipticalAnnulus(centroid, a_in=a_in, a_out=a_out, b_out=b_out, theta=theta)
     totalR_effFlux = ellip_annulus.do_photometry(imageCopy, method="exact")[0][0]
     meanR_effFlux = totalR_effFlux / ellip_annulus.area
 
