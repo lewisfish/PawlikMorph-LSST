@@ -62,7 +62,7 @@ nbformat==5.0.4
 networkx==2.4
 notebook==6.4.10
 numba==0.48.0
-numpy==1.18.1
+numpy==1.21.0
 olefile==0.46
 orderedmultidict==1.0.1
 packaging==20.1
