@@ -47,7 +47,7 @@ python imganalysis.py [-h] [-A] [-As] [-Aall] [-sersic] [-spm] [-sci] [-li]
  This will read images from images.csv, generate a folder
     sample/output where pixelmaps of the object, clean images,
     segmentation maps and calculated parameters are stored:
-  - imganalysis.py --file images.csv -fo sample -Aall -cas -sci -spm
+  - python imganalysis.py --file images.csv -fo sample -Aall -cas -sci -spm
 
 An example using parallel processing with 8 cores:
   - python imganalysis.py --file images.csv -fo sample -Aall -sersic -sci -spm -par parsl -n 8 -cas
