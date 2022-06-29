@@ -43,15 +43,15 @@ python imganalysis.py [-h] [-A] [-As] [-Aall] [-sersic] [-spm] [-sci] [-li]
  - -d, create diagnostic figures for each galaxy
  
  Example
+ 
  This will read images from images.csv, generate a folder
     sample/output where pixelmaps of the object, clean images,
-    segmentation maps and calculated parameters are stored.
-	- imganalysis.py --file images.csv -fo sample -Aall -cas -sci -spm
+    segmentation maps and calculated parameters are stored:
+  - imganalysis.py --file images.csv -fo sample -Aall -cas -sci -spm
 
-An example using parallel processing with 8 cores
+An example using parallel processing with 8 cores:
   - python imganalysis.py --file images.csv -fo sample -Aall -sersic -sci -spm -par parsl -n 8 -cas
   
-
 
 ## Installation
 
@@ -60,7 +60,8 @@ First clone this repo. Then either use pip or conda to install dependencies:
   
   Or
   - conda env create -f environment.yml
-  In this case you will need to activate the environment before
+
+In this case you will need to activate the environment before
   running the code:
  -  conda activate pawlikMorph-lsst
 
