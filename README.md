@@ -3,7 +3,8 @@
 
 Translation and optimisation of SEDMORPH's [PawlikMorph](https://github.com/SEDMORPH/PawlikMorph) IDL code for analysing images of galaxies from SDSS data release 7
 
-Replicates the ability to prepare images, generate object binary masks and calculate the A, As, As90 asymmetry parameters, and Sersic parameters.
+Replicates the ability to prepare images, generate object binary masks
+and calculate the shape asymmetry parameters, CAS, gini, M20 and Sersic parameters.
 
 ## Usage
 
@@ -42,12 +43,14 @@ python imganalysis.py [-h] [-A] [-As] [-Aall] [-sersic] [-spm] [-sci] [-li]
  - -d, create diagnostic figures for each galaxy
  
  Example
-  - imganalysis.py --file images.csv -fo sample -Aall -cas -sci -spm
-  - This will read images from images.csv, generate a folder
+ This will read images from images.csv, generate a folder
     sample/output where pixelmaps of the object, clean images,
     segmentation maps and calculated parameters are stored.
+	- imganalysis.py --file images.csv -fo sample -Aall -cas -sci -spm
+
+An example using parallel processing with 8 cores
   - python imganalysis.py --file images.csv -fo sample -Aall -sersic -sci -spm -par parsl -n 8 -cas
-  - An example using parallel processing with 8 cores
+  
 
 
 ## Installation
@@ -57,7 +60,7 @@ First clone this repo. Then either use pip or conda to install dependencies:
   
   Or
   - conda env create -f environment.yml
-  - In this case you will need to activate the environment before
+  In this case you will need to activate the environment before
   running the code:
  -  conda activate pawlikMorph-lsst
 
