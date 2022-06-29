@@ -13,7 +13,7 @@ from astropy.utils.exceptions import AstropyWarning
 __all__ = ["objectOccluded"]
 
 
-def objectOccluded(mask: np.ndarray, radec: Tuple[float, float],
+def objectOccluded(segmap: np.ndarray, radec: Tuple[float, float],
                    catalogue: str, header, galaxy=False, cosmicray=False,
                    unknown=False) -> Tuple[bool, List[float]]:
 
@@ -22,8 +22,8 @@ def objectOccluded(mask: np.ndarray, radec: Tuple[float, float],
     Parameters
     ----------
 
-    mask: np.ndarray
-        Object mask
+    segmap: np.ndarray
+        Object segmap
 
     radec: Tuple[float, float]
         Tuple of ra, dec
@@ -47,7 +47,7 @@ def objectOccluded(mask: np.ndarray, radec: Tuple[float, float],
     Returns
     -------
     Tuple[bool, List[float]]
-        Returns true alongside list of objects that occlude object mask.
+        Returns true alongside list of objects that occlude object segmap.
         Otherwise returns false and an empty list
     """
 
@@ -65,7 +65,7 @@ def objectOccluded(mask: np.ndarray, radec: Tuple[float, float],
         pos = SkyCoord(obj[0]*units.deg, obj[1]*units.deg)
         pos = wcs.utils.skycoord_to_pixel(pos, wcs=w)
         # check for occlusion
-        bools = np.nonzero(mask[int(pos[1])-1:int(pos[1])+1, int(pos[0])-1:int(pos[0])+1] == 1)
+        bools = np.nonzero(segmap[int(pos[1])-1:int(pos[1])+1, int(pos[0])-1:int(pos[0])+1] == 1)
         if np.any(bools):
             listofOccludedObjs.append(obj)
 

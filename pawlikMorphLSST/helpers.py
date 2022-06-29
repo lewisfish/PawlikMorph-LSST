@@ -47,10 +47,10 @@ def analyseImage(info: List[Union[float, str]], *args) -> List[Union[float, str]
         skybgr, skybgr_err, *_ = skybgr(img)
 
         # create image where the only bright pixels are the pixels that belong to the galaxy
-        mask = pixelmap(img, skybgr + skybgr_err, 3)
+        segmap = pixelmap(img, skybgr + skybgr_err, 3)
         img -= skybgr
-        A, As, As90 = calculateAsymmetries(img, mask)
-        C, S, gini, m20 = calculateCSGM(img, mask, skybgr)
+        A, As, As90 = calculateAsymmetries(img, segmap)
+        C, S, gini, m20 = calculateCSGM(img, segmap, skybgr)
 
     except (AttributeError, RuntimeError, MemoryError) as e:
         # if sky background estimation fails return array of -99

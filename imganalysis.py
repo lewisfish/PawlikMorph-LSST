@@ -14,7 +14,7 @@ if __name__ == '__main__':
     parser.add_argument("-sersic", "--sersic", action="store_true",
                         help="Calculate sersic profile.")
 
-    parser.add_argument("-spm", "--savepixmap", action="store_true",
+    parser.add_argument("-spm", "--savesegmap", action="store_true",
                         help="Save calculated binary pixelmaps.")
     parser.add_argument("-sci", "--savecleanimg", action="store_true",
                         help="Save cleaned image.")
@@ -52,21 +52,36 @@ if __name__ == '__main__':
     parser.add_argument("-n", "--cores", type=int, default=1, help="Number of\
                         cores/process to use in calculation")
 
-    parser.add_argument("-m", "--mask", action="store_true", help="If this\
+    parser.add_argument("-segmap", "--segmap", action="store_true", help="If this\
                             option is provided then the script expects there\
-                            to be precomputed masks in the format\
-                            'pixelmap_' + filename in the same folder as the\
-                            images for analysis")
+                            to be precomputed segmentation map in the format\
+                            'segmap_' + filename in the OUTPUT folder (not the same folder as used for analysis)")
+
+    parser.add_argument("-starmask", "--starmask", action="store_true", help="If this\
+                            option is provided then the script expects there\
+                            to be precomputed starmasp in the format\
+                            'starmask_' + filename in the OUTPUT folder (not the same folder as used for analysis)")
 
     parser.add_argument("-cas", "--cas", action="store_true", help="If this\
                         option is enabled, the CAS parameters are calculated\
                         (Gini, M20, r20, r80, concentation, smoothness)")
+                        
+    parser.add_argument("-d", "--diagnostic", action="store_true", help="If this\
+                        option is enabled, diagnostic plots are made for each image")
 
     args = parser.parse_args()
 
-    if args.mask and args.catalogue:
-        raise ValueError("Can't provide both a star catalogue and precomputed mask!")
+    
+    if args.segmap and args.catalogue:
+        raise ValueError("Can't provide both a star catalogue and precomputed segmentation map!")
 
+    if args.starmask and args.catalogue:
+        raise ValueError("Can't provide both a star catalogue and precomputed star mask file!")
+
+    if args.segmap and args.savesegmap:
+        print("Not saving segmap as requested, because you are providing segmaps!")
+        args.savesegmap = False
+    
     if args.imgsource == "SDSS":
         imageInfos = helpers.getFiles(args.file)
     elif args.imgsource == "LSST":
@@ -77,7 +92,7 @@ if __name__ == '__main__':
     results = main.calcMorphology(imageInfos, outfolder,
                                   allAsymmetry=args.Aall,
                                   calculateSersic=args.sersic,
-                                  savePixelMap=args.savepixmap,
+                                  saveSegMap=args.savesegmap,
                                   saveCleanImage=args.savecleanimg,
                                   imageSource=args.imgsource,
                                   largeImage=args.largeimage,
@@ -86,12 +101,13 @@ if __name__ == '__main__':
                                   cores=args.cores,
                                   parallelLibrary=args.parlib,
                                   numberSigmas=args.numsig,
-                                  mask=args.mask,
+                                  segmap=args.segmap,
+                                  starMask=args.starmask,
                                   CAS=args.cas,
                                   npix=args.imgsize,
                                   largeImgFactor=args.largeimagefactor)
 
-    if args.savecleanimg and args.savepixmap:
+    if args.diagnostic:
         print(" ")
         for i in results:
             print(i.file)

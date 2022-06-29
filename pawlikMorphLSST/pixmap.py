@@ -23,7 +23,7 @@ class _ImageError(_Error):
         raise AttributeError
 
 
-def calcRmax(image: np.ndarray, mask: np.ndarray) -> float:
+def calcRmax(image: np.ndarray, segmap: np.ndarray) -> float:
     '''Function to calculate the maximum extent of a binary pixel map
 
     Parameters
@@ -32,8 +32,8 @@ def calcRmax(image: np.ndarray, mask: np.ndarray) -> float:
     image : float, 2d np.ndarray
         Image of galaxy.
 
-    mask : np.ndarray
-        Binary pixel mask
+    segmap : np.ndarray
+        Binary pixel segmap
 
     Return
     ------
@@ -43,7 +43,7 @@ def calcRmax(image: np.ndarray, mask: np.ndarray) -> float:
 
     '''
 
-    objectpix = np.nonzero(mask == 1)
+    objectpix = np.nonzero(segmap == 1)
     cenpix = np.array(np.unravel_index(image.argmax(), image.shape))
 
     distarray = distarr(image.shape[0], image.shape[1], cenpix)
@@ -86,13 +86,13 @@ def calcMaskedFraction(oldMask: np.ndarray, starMask: np.ndarray,
     return 1. - (maskedFraction / objectFraction)
 
 
-def checkPixelmapEdges(mask: np.ndarray) -> bool:
+def checkPixelmapEdges(segmap: np.ndarray) -> bool:
     '''Flag image if galaxy pixels are on edge of image.
 
     Parameters
     -------
 
-    mask : np.ndarray
+    segmap : np.ndarray
         pixelmap to check
 
     Returns
@@ -105,19 +105,19 @@ def checkPixelmapEdges(mask: np.ndarray) -> bool:
 
     flag = True
 
-    summ = np.sum(mask[0, :])
+    summ = np.sum(segmap[0, :])
     if summ > 0:
         return flag
 
-    summ = np.sum(mask[mask.shape[0]-1, :])
+    summ = np.sum(segmap[segmap.shape[0]-1, :])
     if summ > 0:
         return flag
 
-    summ = np.sum(mask[:, 0])
+    summ = np.sum(segmap[:, 0])
     if summ > 0:
         return flag
 
-    summ = np.sum(mask[:, mask.shape[0]-1])
+    summ = np.sum(segmap[:, segmap.shape[0]-1])
     if summ > 0:
         return flag
 

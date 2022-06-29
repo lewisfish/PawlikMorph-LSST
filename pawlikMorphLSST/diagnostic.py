@@ -131,7 +131,7 @@ def make_oneone(ax, img, result):
     ax.add_artist(textbox)
 
 
-def make_onetwo(ax, mask, result):
+def make_onetwo(ax, segmap, result):
     '''Function plots the object map
 
     Parameters
@@ -139,8 +139,8 @@ def make_onetwo(ax, mask, result):
 
     ax : matplotlib axis object
 
-    mask : np.ndarray
-        object mask data to be plotted
+    segmap : np.ndarray
+        object segmap data to be plotted
 
     results : Result dataclass
         dataclass of calculated results for object
@@ -150,11 +150,11 @@ def make_onetwo(ax, mask, result):
 
     '''
 
-    ax.imshow(mask, origin="lower", aspect="auto", cmap="gray")
+    ax.imshow(segmap, origin="lower", aspect="auto", cmap="gray")
     ax.scatter(result.apix[0], result.apix[1], label="Asym. centre")
-    ax.set_xlim([-0.5, mask.shape[0]+0.5])
-    ax.set_ylim([-0.5, mask.shape[1]+0.5])
-    ax.set_title("Object mask")
+    ax.set_xlim([-0.5, segmap.shape[0]+0.5])
+    ax.set_ylim([-0.5, segmap.shape[1]+0.5])
+    ax.set_title("Object Segmentation Map")
 
     text = f"A={result.A[0]:.3f}\nA_bgr={result.A[1]:.3f}\n" rf"$A_s$={result.As[0]:.3f}"
     text += "\n" fr"$A_s90$={result.As90[0]:.3f}"
@@ -168,7 +168,7 @@ def make_onetwo(ax, mask, result):
     textbox = AnchoredText(text, frameon=True, loc=4, pad=0.5)
     ax.add_artist(textbox)
 
-    circle = mpatches.Circle(((mask.shape[0]/2)+1, (mask.shape[1]/2)+1),
+    circle = mpatches.Circle(((segmap.shape[0]/2)+1, (segmap.shape[1]/2)+1),
                              result.rmax, fill=False, label="Rmax", color="white")
     ax.add_patch(circle)
 
@@ -311,23 +311,23 @@ def make_figure(result: Type[Result], folder: bool, save=False, show=False) -> N
                 img, header = fits.getdata(result.outfolder.parent / (result.file), header=True)
 
         try:
-            mask = fits.getdata(result.pixelMapFile)
+            segmap = fits.getdata(result.pixelMapFile)
         except ValueError:
-            mask = fits.getdata(result.outfolder / ("pixelmap_" + result.file))
+            segmap = fits.getdata(result.outfolder / ("segmap_" + result.file))
 
     if result.sersic_r_eff != -99 and result.sky != -99:
         fig, axs = plt.subplots(2, 2)
         axs = axs.ravel()
         make_oneone(axs[0], img, result)
-        make_onetwo(axs[1], mask, result)
+        make_onetwo(axs[1], segmap, result)
         modelImage = make_twoone(axs[2], img.shape, result)
         make_twotwo(axs[3], img, modelImage, result.objList, result)
     else:
         fig, axs = plt.subplots(1, 2)
         make_oneone(axs[0], img, result)
         axs[0].set_ylim([-0.5, img.shape[1]+0.5])
-        make_onetwo(axs[1], mask, result)
-        axs[1].set_ylim([-0.5, mask.shape[1]+0.5])
+        make_onetwo(axs[1], segmap, result)
+        axs[1].set_ylim([-0.5, segmap.shape[1]+0.5])
 
     fig.set_figheight(11.25)
     fig.set_figwidth(20)

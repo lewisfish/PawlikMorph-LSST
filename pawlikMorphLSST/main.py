@@ -37,11 +37,11 @@ __all__ = ["calcMorphology"]
 def calcMorphology(imageInfos, outfolder, largeImgFactor: float, npix: float, filterSize: int,
                    parallelLibrary: str, cores: int, numberSigmas: float,
                    asymmetry=False, shapeAsymmetry=False,
-                   allAsymmetry=True, calculateSersic=False, savePixelMap=True,
+                   allAsymmetry=True, calculateSersic=False, saveSegMap=False,
                    saveCleanImage=True, imageSource=None, catalogue=None,
                    largeImage=False, paramsaveFile="parameters.csv",
                    occludedSaveFile="occluded-object-locations.csv",
-                   mask=False, CAS=True):
+                   segmap=False, starMask=False, CAS=True):
     '''
     Calculates various morphological parameters of galaxies from an image.
 
@@ -139,10 +139,10 @@ def calcMorphology(imageInfos, outfolder, largeImgFactor: float, npix: float, fi
         engine = multiprocEngine(_analyseImage,
                                  [outfolder, filterSize, asymmetry,
                                   shapeAsymmetry, allAsymmetry,
-                                  calculateSersic, savePixelMap,
+                                  calculateSersic, saveSegMap,
                                   saveCleanImage, imageSource, catalogue,
                                   largeImage, paramsaveFile, occludedSaveFile,
-                                  numberSigmas, mask, CAS, npix, largeImgFactor])
+                                  numberSigmas, segmap, starMask, CAS, npix, largeImgFactor])
         results = pool.map(engine, imageInfos)
         pool.close()
         pool.join()
@@ -152,10 +152,10 @@ def calcMorphology(imageInfos, outfolder, largeImgFactor: float, npix: float, fi
         for imageInfo in imageInfos:
             output = _analyseImageParsl(imageInfo, outfolder, filterSize, asymmetry,
                                         shapeAsymmetry, allAsymmetry,
-                                        calculateSersic, savePixelMap,
+                                        calculateSersic, saveSegMap,
                                         saveCleanImage, imageSource, catalogue,
                                         largeImage, paramsaveFile, occludedSaveFile,
-                                        numberSigmas, mask, CAS, npix, largeImgFactor)
+                                        numberSigmas, segmap, starMask, CAS, npix, largeImgFactor)
             outputs.append(output)
         results = [i.result() for i in outputs]
     else:
@@ -163,10 +163,10 @@ def calcMorphology(imageInfos, outfolder, largeImgFactor: float, npix: float, fi
         for imageInfo in imageInfos:
             result = _analyseImage(imageInfo, outfolder, filterSize, asymmetry,
                                    shapeAsymmetry, allAsymmetry,
-                                   calculateSersic, savePixelMap,
+                                   calculateSersic, saveSegMap,
                                    saveCleanImage, imageSource, catalogue,
                                    largeImage, paramsaveFile, occludedSaveFile,
-                                   numberSigmas, mask, CAS, npix, largeImgFactor)
+                                   numberSigmas, segmap, starMask, CAS, npix, largeImgFactor)
             results.append(result)
 
     # write out results
@@ -189,10 +189,10 @@ def calcMorphology(imageInfos, outfolder, largeImgFactor: float, npix: float, fi
 @python_app
 def _analyseImageParsl(imageInfo, outfolder, filterSize, asymmetry,
                        shapeAsymmetry, allAsymmetry,
-                       calculateSersic, savePixelMap,
+                       calculateSersic, saveSegMap,
                        saveCleanImage, imageSource, catalogue,
                        largeImage, paramsaveFile, occludedSaveFile,
-                       numberSigmas, mask, CAS, npix, largeImgFactor):
+                       numberSigmas, segmap, starMask, CAS, npix, largeImgFactor):
     '''Helper function so that Parsl can run
 
     Parameters
@@ -209,18 +209,18 @@ def _analyseImageParsl(imageInfo, outfolder, filterSize, asymmetry,
 
     return _analyseImage(imageInfo, outfolder, filterSize, asymmetry,
                          shapeAsymmetry, allAsymmetry,
-                         calculateSersic, savePixelMap,
+                         calculateSersic, saveSegMap,
                          saveCleanImage, imageSource, catalogue,
                          largeImage, paramsaveFile, occludedSaveFile,
-                         numberSigmas, mask, CAS, npix, largeImgFactor)
+                         numberSigmas, segmap, starMask, CAS, npix, largeImgFactor)
 
 
 def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
                   shapeAsymmetry: bool, allAsymmetry: bool,
-                  calculateSersic: bool, savePixelMap: bool,
+                  calculateSersic: bool, saveSegMap: bool,
                   saveCleanImage: bool, imageSource: str, catalogue,
                   largeImage: bool, paramsaveFile, occludedSaveFile, numberSigmas: float,
-                  mask: np.ndarray, CAS: bool, npix: float, largeImgFactor: float):
+                  segmap: np.ndarray, starMask: np.ndarray, CAS: bool, npix: float, largeImgFactor: float):
     '''The main function that calls all the underlying scientific analysis code
 
     Parameters
@@ -247,8 +247,8 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
     calculateSersic : bool
         If true calculate Sersic profile
 
-    savePixelMap : bool
-        If true save pixelmap
+    saveSegMap : bool
+        If true save segmentation map
 
     saveCleanImage : bool
         If true save cleaned image
@@ -271,10 +271,13 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
     numberSigmas : float
         Number of sigmas to mask stars to.
 
-    mask : bool
-        If true then use "pixelmap_" + file as pixelmap, and don't
-        calculate pixelmap.
+    segmap : bool
+        If true then use "segmap_" + file as segmap, and don't
+        calculate segmap.
 
+    starMask : bool
+        If true then use "starmask_" + file as starmask.
+        
     CAS : bool
         If True, then calculate gini, clumpiness/smoothness, M20, and
         concentration morphology parameters.
@@ -346,23 +349,27 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
         newResult.sky, newResult.sky_err, newResult.fwhms, newResult.theta = skybgr(img, file=file, largeImage=imgLarge, imageSource=imageSource)
     except AttributeError:
         # TODO can fail silently if some other attribute error is raised!
-        filename = file.name
-        filename = "pixelmap_" + filename
-        outfile = outfolder / filename
-        hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
-        hdu.writeto(outfile, overwrite=True, output_verify='ignore')
+        if saveSegMap:
+            filename = file.name
+            filename = "segmap_" + filename
+            outfile = outfolder / filename
+            hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
+            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
         print(" ")
         return newResult
     except MemoryError:
-        filename = file.name
-        filename = "pixelmap_" + filename
-        outfile = outfolder / filename
-        hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
-        hdu.writeto(outfile, overwrite=True, output_verify='ignore')
+        if saveSegMap:
+            filename = file.name
+            filename = "segmap_" + filename
+            outfile = outfolder / filename
+            hdu = fits.PrimaryHDU(data=np.zeros_like(img), header=header)
+            hdu.writeto(outfile, overwrite=True, output_verify='ignore')
         print(" ")
         return newResult
 
-    if not mask:
+    if not segmap:
+        # Create Object Mask using 8-connected snail shell if none provided 
+
         if catalogue:
             # if a star catalogue is provided calculate pixelmap and then see
             # if any star in catalogue overlaps pixelmap
@@ -382,24 +389,54 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
             except KeyError as e:
                 print(e, ", so not using star catalogue to mask stars!")
                 starMask = np.ones_like(img)
-            mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
-        else:
+                
+            segmap = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
+
+        if starMask:
+            # if a star mask is provided calculate pixelmap and then see
+            # if any masked pixels overlaps pixelmap
             try:
-                mask = pixelmap(img, newResult.sky + newResult.sky_err, filterSize)
+                tmpmask = pixelmap(img, newResult.sky + newResult.sky_err,
+                                   filterSize)
+            except AttributeError:
+                return newResult
+            
+            # read in starMask file
+            with warnings.catch_warnings():
+                # ignore invalid card warnings
+                warnings.simplefilter('ignore', category=AstropyWarning)
+                filename = file.name
+                filename = "starmask_" + filename
+                print('reading starmask file:',filename)
+                starMaskpath = outfolder / filename
+                starMask = fits.getdata(starMaskpath)
+                
+            segmap = pixelmap(img, newResult.sky + newResult.sky_err, filterSize, starMask)
+            
+        else:
+            # no info provided on stars
+            print('no star info provided, assuming no stars in field')
+
+            try:
+                segmap = pixelmap(img, newResult.sky + newResult.sky_err, filterSize)
                 starMask = np.ones_like(img)
             except AttributeError:
                 return newResult
 
         # check if pixelmap touch edge and flag if it does.
-        newResult.objectEdge = checkPixelmapEdges(mask)
+        newResult.objectEdge = checkPixelmapEdges(segmap)
+
     else:
+        # read in segmap file
         with warnings.catch_warnings():
             # ignore invalid card warnings
             warnings.simplefilter('ignore', category=AstropyWarning)
             filename = file.name
-            filename = "pixelmap_" + filename
-            maskpath = outfolder / filename
-            mask = fits.getdata(maskpath)
+            filename = "segmap_" + filename
+            print('reading segmap file:',filename)
+            segmappath = outfolder / filename
+            segmap = fits.getdata(segmappath)
+        # set starmask array as 1's as not using this if segmap provided
         starMask = np.ones_like(img)
 
     img -= newResult.sky
@@ -415,30 +452,30 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
         hdu = fits.PrimaryHDU(data=img, header=header)
         hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
-    if savePixelMap:
+    if saveSegMap:
         filename = file.name
-        filename = "pixelmap_" + filename
+        filename = "segmap_" + filename
         outfile = outfolder / filename
         newResult.pixelMapFile = outfile
-        hdu = fits.PrimaryHDU(data=mask, header=header)
+        hdu = fits.PrimaryHDU(data=segmap, header=header)
         hdu.writeto(outfile, overwrite=True, output_verify='ignore')
 
-    newResult.rmax = calcRmax(img, mask)
+    newResult.rmax = calcRmax(img, segmap)
     aperturepixmap = aperpixmap(imgsize, newResult.rmax, 9, 0.1)
 
     # get centre of asymmetry
-    newResult.apix = minapix(img, mask, aperturepixmap, starMask)
+    newResult.apix = minapix(img, segmap, aperturepixmap, starMask)
     angle = 180.
 
     if asymmetry or allAsymmetry or CAS:
-        newResult.A = calcA(img, mask, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
+        newResult.A = calcA(img, segmap, aperturepixmap, newResult.apix, angle, starMask, noisecorrect=True)
         if catalogue:
             newResult.maskedPixelFraction = calcMaskedFraction(tmpmask, starMask, newResult.apix)
 
     if shapeAsymmetry or allAsymmetry:
-        newResult.As = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
+        newResult.As = calcA(segmap, segmap, aperturepixmap, newResult.apix, angle, starMask)
         angle = 90.
-        newResult.As90 = calcA(mask, mask, aperturepixmap, newResult.apix, angle, starMask)
+        newResult.As90 = calcA(segmap, segmap, aperturepixmap, newResult.apix, angle, starMask)
 
     if calculateSersic:
         p = fitSersic(img, newResult.apix, newResult.fwhms, newResult.theta, starMask)
@@ -453,9 +490,9 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
     if CAS:
         newResult.r20, newResult.r80 = calcR20_R80(img, newResult.apix, newResult.rmax)
         newResult.C = concentration(newResult.r20, newResult.r80)
-        newResult.gini = gini(img, mask)
-        newResult.S = smoothness(img, mask, newResult.apix, newResult.rmax, newResult.r20, newResult.sky)
-        newResult.m20 = m20(img, mask)
+        newResult.gini = gini(img, segmap)
+        newResult.S = smoothness(img, segmap, newResult.apix, newResult.rmax, newResult.r20, newResult.sky)
+        newResult.m20 = m20(img, segmap)
 
     f = time.time()
     timetaken = f - s

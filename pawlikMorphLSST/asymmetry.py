@@ -10,7 +10,7 @@ from . pixmap import calcRmax
 __all__ = ["minapix", "calcA", "calculateAsymmetries"]
 
 
-def calculateAsymmetries(image: np.ndarray, pixelmap: np.ndarray) -> Tuple[float]:
+def calculateAsymmetries(image: np.ndarray, segmap: np.ndarray) -> Tuple[float]:
     """helper function to calculate all asymmetries
 
     Parameters
@@ -19,7 +19,7 @@ def calculateAsymmetries(image: np.ndarray, pixelmap: np.ndarray) -> Tuple[float
     image : np.ndarray, 2d float
         image of a galaxy for which the asymmetries should be calculated.
 
-    pixelmap : np.ndarray, 2d uint8
+    segmap : np.ndarray, 2d uint8
         Pixel mask of the galaxy calculated from image.
 
     Returns
@@ -30,24 +30,24 @@ def calculateAsymmetries(image: np.ndarray, pixelmap: np.ndarray) -> Tuple[float
 
     """
 
-    Rmax = calcRmax(image, pixelmap)
+    Rmax = calcRmax(image, segmap)
     aperturepixmap = aperpixmap(image.shape[0], Rmax, 9, 0.1)
 
     starmask = np.ones_like(image)
-    apix = minapix(image, pixelmap, aperturepixmap, starmask)
+    apix = minapix(image, segmap, aperturepixmap, starmask)
     angle = 180.
 
-    A = calcA(image, pixelmap, aperturepixmap, apix, angle, starmask, noisecorrect=True)
+    A = calcA(image, segmap, aperturepixmap, apix, angle, starmask, noisecorrect=True)
 
-    As = calcA(pixelmap, pixelmap, aperturepixmap, apix, angle, starmask)
+    As = calcA(segmap, segmap, aperturepixmap, apix, angle, starmask)
 
     angle = 90.
-    As90 = calcA(pixelmap, pixelmap, aperturepixmap, apix, angle, starmask)
+    As90 = calcA(segmap, segmap, aperturepixmap, apix, angle, starmask)
 
     return A[0], As[0], As90[0]
 
 
-def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
+def minapix(image: np.ndarray, segmap: np.ndarray, apermask: np.ndarray,
             starMask=None) -> List[int]:
     """Find the pixel that minimises the asymmetry parameter, A
 
@@ -63,8 +63,8 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
 
     image : np.ndarray
         Image that the minimum asymmetry pixel is to be found in.
-    mask : np.ndarray
-        Precomputed mask that describes where the object of interest is in the
+    segmap : np.ndarray
+        Precomputed segmap that describes where the object of interest is in the
         image
     apermask : np.ndarray
         Precomputed aperture mask
@@ -81,9 +81,9 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
 
     if starMask is not None:
         # mask the image with object mask and star mask if provided
-        imageMask = image * mask * starMask
+        imageMask = image * segmap * starMask
     else:
-        imageMask = image * mask
+        imageMask = image * segmap
 
     # only want top 20% brightest pixels
     TWENTYPERCENT = 0.2
@@ -129,7 +129,7 @@ def minapix(image: np.ndarray, mask: np.ndarray, apermask: np.ndarray,
     return centroidCandidates[aMinimumIndex]
 
 
-def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
+def calcA(img: np.ndarray, segmap: np.ndarray, apermask: np.ndarray,
           centroid: List[int], angle: float, starMask=None,
           noisecorrect=False) -> List[float]:
     r"""Function to calculate A, the asymmetry parameter.
@@ -149,7 +149,7 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
     img : np.ndarray
         Image to be analysed.
 
-    pixmap : np.ndarray
+    segmap : np.ndarray
         Mask that covers object of interest.
 
     apermask : np.ndarray
@@ -216,8 +216,8 @@ def calcA(img: np.ndarray, pixmap: np.ndarray, apermask: np.ndarray,
         element = np.ones((9, 9))
 
         # mask pixel map
-        pixmap *= starMaskCopy
-        mask = ndimage.morphology.binary_dilation(pixmap, structure=element)
+        segmap *= starMaskCopy
+        mask = ndimage.morphology.binary_dilation(segmap, structure=element)
         maskind = np.nonzero(np.ravel(mask) == 1)[0]
         bgrind = np.nonzero(np.ravel(mask) != 1)[0]
         bgrpix = imgravel[bgrind]

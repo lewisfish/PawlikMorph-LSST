@@ -191,7 +191,7 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
     Returns
     -------
 
-    mask : np.ndarray
+    starmask : np.ndarray
         Array that masks stars on original image.
 
     '''
@@ -219,9 +219,9 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
 
     # if no objects create empty mask that wont interfere with future calculations
     if len(objs) > 0:
-        mask = np.zeros_like(image)
+        starmask = np.zeros_like(image)
     else:
-        mask = np.ones_like(image)
+        starmask = np.ones_like(image)
 
     for obj in objs:
         # convert object RA, DEC to pixels
@@ -240,23 +240,23 @@ def maskstarsPSF(image: np.ndarray, objs: List, header, skyCount: float,
         # masks = aps.to_mask(method="subpixel")
         # aperMask = np.where(masks.to_image(image.shape) > 0., 1., 0.)
 
-        newMask = _circle_mask(mask.shape, (pixelPos[1], pixelPos[0]), radius)
-        mask = np.logical_or(mask, newMask)
+        newMask = _circle_mask(starmask.shape, (pixelPos[1], pixelPos[0]), radius)
+        starmask = np.logical_or(starmask, newMask)
         # mask = np.logical_or(mask, aperMask)
         if adaptive:
-            extraExtent = _calculateAdaptiveRadius(mask, pixelPos, image, skyCount, sky_err)
+            extraExtent = _calculateAdaptiveRadius(starmask, pixelPos, image, skyCount, sky_err)
 
             aps = CircularAperture(pixelPos, r=radius+extraExtent)
             masks = aps.to_mask(method="subpixel")
             aperMask = np.where(masks.to_image(image.shape) > 0., 1., 0.)
-            mask = np.logical_or(mask, aperMask)
+            starmask = np.logical_or(starmask, aperMask)
             # tmp = image*~mask + ((skyCount+1000)*mask)  # not used??
 
     # invert calculated mask so that future calculations work
     if len(objs) > 0:
-        mask = ~mask
+        starmask = ~starmask
 
-    return mask
+    return starmask
 
 
 def _calculateAdaptiveRadius(mask: np.ndarray, pixelPos: List[float],

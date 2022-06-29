@@ -217,7 +217,7 @@ def concentration(r20: float, r80: float) -> float:
     return C
 
 
-def gini(image: np.ndarray, mask: np.ndarray) -> float:
+def gini(image: np.ndarray, segmap: np.ndarray) -> float:
     r'''Calculation of the Gini index of a Galaxy.
 
     .. math:: g = \frac{1}{2 \bar{X} n(n-1)} \sum (2i - n - 1) \left|X_i\right|
@@ -234,8 +234,8 @@ def gini(image: np.ndarray, mask: np.ndarray) -> float:
     image : float, 2d np.ndarray
         Image from which the Gini index shall be calculated
 
-    mask : int, 2D np.ndarray
-        TMask which contains the galaxies pixels
+    segmap : int, 2D np.ndarray
+        Segmap which contains the galaxies pixels
 
     Returns
     -------
@@ -245,13 +245,13 @@ def gini(image: np.ndarray, mask: np.ndarray) -> float:
     '''
 
     # Only calculate the Gini index on pixels that belong to the galaxy
-    img = image[mask > 0]
+    img = image[segmap > 0]
     G = giniPhotutils(img)
 
     return G
 
 
-def m20(image: np.ndarray, mask: np.ndarray) -> float:
+def m20(image: np.ndarray, segmap: np.ndarray) -> float:
     r'''Calculate the M20 statistic.
 
     .. math:: M_{20} = log_{10} \left(\frac{\sum M_i}  {M_{tot}}\right)
@@ -268,8 +268,8 @@ def m20(image: np.ndarray, mask: np.ndarray) -> float:
     image : float, 2d np.ndarray
         Image of galaxy
 
-    mask : float [0. - 1.], 2d np.ndarray
-        Mask which contains the pixels belonging to the galaxy of interest.
+    segmap : float [0. - 1.], 2d np.ndarray
+        Segmap which contains the pixels belonging to the galaxy of interest.
 
     Returns
     -------
@@ -280,7 +280,7 @@ def m20(image: np.ndarray, mask: np.ndarray) -> float:
     '''
 
     # use the same image as used in Gini calculation.
-    img = np.where(mask > 0, image, 0.)
+    img = np.where(segmap > 0, image, 0.)
 
     # Calculate centroid from moments
     M = moments(img, order=1)
@@ -306,7 +306,7 @@ def m20(image: np.ndarray, mask: np.ndarray) -> float:
     return m20
 
 
-def smoothness(image: np.ndarray, mask: np.ndarray, centroid: List[float],
+def smoothness(image: np.ndarray, segmap: np.ndarray, centroid: List[float],
                Rmax: float, r20: float, sky: float) -> float:
     r'''Calculate the smoothness or clumpiness of the galaxy of interest.
 
@@ -325,8 +325,8 @@ def smoothness(image: np.ndarray, mask: np.ndarray, centroid: List[float],
     image : float, 2d np.ndarray
         Image of galaxy
 
-    mask : float [0. - 1.], 2d np.ndarray
-        Mask which contains the pixels belonging to the galaxy of interest.
+    segmap : float [0. - 1.], 2d np.ndarray
+        Segmap which contains the pixels belonging to the galaxy of interest.
 
     centroid : List[float]
         Pixel location of the brightest pixel in galaxy.
@@ -365,13 +365,13 @@ def smoothness(image: np.ndarray, mask: np.ndarray, centroid: List[float],
     # calculate S, accounting for the background smoothness.
     imageFlux = imageApeture.do_photometry(image, method="exact")[0][0]
     diffFlux = imageApeture.do_photometry(imageDiff, method="exact")[0][0]
-    backgroundSmooth = _getBackgroundSmoothness(image, mask, sky, r20)
+    backgroundSmooth = _getBackgroundSmoothness(image, segmap, sky, r20)
     S = (diffFlux - imageApeture.area*backgroundSmooth) / imageFlux
 
     return S
 
 
-def _getBackgroundSmoothness(image: np.ndarray, mask: np.ndarray, sky: float,
+def _getBackgroundSmoothness(image: np.ndarray, segmap: np.ndarray, sky: float,
                              boxcarSize: float) -> float:
     '''Calculate the background smoothness.
 
@@ -381,8 +381,8 @@ def _getBackgroundSmoothness(image: np.ndarray, mask: np.ndarray, sky: float,
     image : float, 2d np.ndarray
         The image.
 
-    mask : float [0-1], 2d np.ndarray
-        mask that contains the galaxy objects pixels
+    segmap : float [0-1], 2d np.ndarray
+        segmap that contains the galaxy objects pixels
 
     sky : float
         Value of the sky background
@@ -399,8 +399,8 @@ def _getBackgroundSmoothness(image: np.ndarray, mask: np.ndarray, sky: float,
 
     # Set the galxy pixels to -99 so that we dont include them in background
     # smoothness calculation
-    maskCopy = ~np.array(mask, dtype=np.bool)
-    imageCopy = image * maskCopy
+    segmapCopy = ~np.array(segmap, dtype=np.bool)
+    imageCopy = image * segmapCopy
     imageCopy[imageCopy == 0.] = -99
 
     boxSize = 32
