@@ -13,13 +13,15 @@ python imganalysis.py [-h] [-A] [-As] [-Aall] [-sersic] [-spm] [-sci] [-li]
                       [-lif] [-f FILE] [-fo FOLDER] [-src {SDSS,LSST}]
                       [-s IMGSIZE] [-cc CATALOGUE] [-ns NUMSIG]
                       [-fs {1,3,5,7,9,11,13,15}] [-par {multi,parsl,none}]
-                      [-n CORES] [-m] [-cas]
+                      [-n CORES] [-cas] [-segmap][-starmask][-d]
 
 
 
  - -h, shows the help screen
- - -f FILE, File which contains list of images, and RA DECS of object in image
- - -fo FOLDER, Path to folder to save script outputs
+ - -f FILE, File which contains list of image filenames, and RA DECS of object
+   in image (RA and DEC can be zeros if galaxy is centred on cut-out)
+ - -fo FOLDER, Path to folder to save script outputs, and where input
+   segmaps and starmasks are located
  - -A, runs the asymmetry calculation
  - -As, Runs the shape asymmetry calculation
  - -Aall, Runs all the implmented asymmetry calculations
@@ -34,11 +36,19 @@ python imganalysis.py [-h] [-A] [-As] [-Aall] [-sersic] [-spm] [-sci] [-li]
  - -ns, Radial extent to which mask out stars if a catalogue is provided
  - -par, Choose which library to use to parallelise script, {multi, parsl, none}
  - -n, Number of cores to use
- - -m, use precomputed masks
+ - -segmap, use precomputed segmentation map of galaxy as fits images named  'segmap_' + filename in the OUTPUT folder. 
+ - -starmask, use precomputed star mask as fits images named  'starmask_' + filename in the OUTPUT folder (mutually exclusive to segmap
+   and catalogue)
+ - -d, create diagnostic figures for each galaxy
  
  Example
+  - imganalysis.py --file images.csv -fo sample -Aall -cas -sci -spm
+  - This will read images from images.csv, generate a folder
+    sample/output where pixelmaps of the object, clean images,
+    segmentation maps and calculated parameters are stored.
   - python imganalysis.py --file images.csv -fo sample -Aall -sersic -sci -spm -par parsl -n 8 -cas
-  - This will read images from images.csv, generate a folder sample/output where pixelmaps of the object, clean images, and calculated parameters are stored.
+  - An example using parallel processing with 8 cores
+
 
 ## Installation
 
@@ -47,6 +57,9 @@ First clone this repo. Then either use pip or conda to install dependencies:
   
   Or
   - conda env create -f environment.yml
+  - In this case you will need to activate the environment before
+  running the code:
+ -  conda activate pawlikMorph-lsst
 
 ## Requirments
  - Python 3.7+
