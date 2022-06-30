@@ -43,8 +43,10 @@ def calcRmax(image: np.ndarray, segmap: np.ndarray) -> float:
 
     '''
 
+    MaskedImage = image*segmap
+
     objectpix = np.nonzero(segmap == 1)
-    cenpix = np.array(np.unravel_index(image.argmax(), image.shape))
+    cenpix = np.array(np.unravel_index(MaskedImage.argmax(), image.shape))
 
     distarray = distarr(image.shape[0], image.shape[1], cenpix)
     objectdist = distarray[objectpix]

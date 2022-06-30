@@ -488,10 +488,10 @@ def _analyseImage(imageInfo, outfolder, filterSize, asymmetry: bool,
         newResult.sersic_y_0 = p.y_0.value
 
     if CAS:
-        newResult.r20, newResult.r80 = calcR20_R80(img, newResult.apix, newResult.rmax)
+        newResult.r20, newResult.r80 = calcR20_R80(img, segmap, newResult.apix, newResult.rmax)
         newResult.C = concentration(newResult.r20, newResult.r80)
         newResult.gini = gini(img, segmap)
-        newResult.S = smoothness(img, segmap, newResult.apix, newResult.rmax, newResult.r20, newResult.sky)
+        # newResult.S = smoothness(img, segmap, newResult.apix, newResult.rmax, newResult.r20, newResult.sky)
         newResult.m20 = m20(img, segmap)
 
     f = time.time()

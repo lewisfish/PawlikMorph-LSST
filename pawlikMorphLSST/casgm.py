@@ -18,42 +18,6 @@ from . pixmap import calcRmax
 __all__ = ["gini", "m20", "concentration", "smoothness", "calcR20_R80", "calculateCSGM"]
 
 
-def calculateCSGM(image: np.ndarray, mask: np.ndarray, skybgr: float) -> Tuple[float]:
-    """Helper function that calculates the CSGM parameters
-
-    Parameters
-    ----------
-
-    image : np.ndarray, 2D float
-        Image of a galxy for which the CSGM parameters are to be calculated
-
-    mask : np.ndarray, 2D uint8
-        Image for which only the pixels that belong to the galaxy in "image" are "hot".
-
-    skybgr : float
-        The value of the sky background in the given image
-
-    Returns
-    -------
-
-    C, S, gini, m20: Tuple[float]
-        The CSGM parameters
-
-    """
-
-    Rmax = calcRmax(image, mask)
-    aperturepixmap = aperpixmap(image.shape[0], Rmax, 9, 0.1)
-
-    starmask = np.ones_like(image)
-    apix = minapix(image, mask, aperturepixmap, starmask)
-    r20, r80 = calcR20_R80(image, apix, Rmax)
-    C = concentration(r20, r80)
-    g = gini(image, mask)
-    S = smoothness(image, mask, apix, Rmax, r20, skybgr)
-    m = m20(image, mask)
-
-    return C, S, g, m
-
 
 def _getCircularFraction(image: np.ndarray, centroid: List[float],
                          radius: float, fraction: float) -> float:
@@ -157,7 +121,7 @@ def _fractionTotalFLuxCircle(radius: float, image: np.ndarray,
     return root
 
 
-def calcR20_R80(image: np.ndarray, centroid: List[float],
+def calcR20_R80(image: np.ndarray, segmap: np.ndarray,centroid: List[float],
                 radius: float) -> Tuple[float, float]:
     r'''Calculation of :math:`r_{20}`, and :math:`r_{80}`
 
@@ -167,6 +131,9 @@ def calcR20_R80(image: np.ndarray, centroid: List[float],
 
     image : float, 2d np.ndarray
         Image of galaxy
+  
+    segmap : float, 2d np.ndarray
+        mask of galaxy pixels
 
     centroid : List[float]
         Location of the brightest pixel
@@ -181,9 +148,9 @@ def calcR20_R80(image: np.ndarray, centroid: List[float],
         The radii where 20% and 80% light falls within
 
     '''
-
-    r20 = _getCircularFraction(image, centroid, radius, 0.2)
-    r80 = _getCircularFraction(image, centroid, radius, 0.8)
+    MaskedImage = image*segmap
+    r20 = _getCircularFraction(MaskedImage, centroid, radius, 0.2)
+    r80 = _getCircularFraction(MaskedImage, centroid, radius, 0.8)
 
     return r20, r80
 
