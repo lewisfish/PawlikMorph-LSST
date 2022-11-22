@@ -75,7 +75,7 @@ pexpect==4.8.0
 phonenumbers==8.10.14
 photutils==0.7.2
 pickleshare==0.7.5
-Pillow==9.0.1
+Pillow==9.3.0
 plotly==4.5.0
 pluggy==0.13.0
 prometheus-client==0.7.1
